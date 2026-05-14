@@ -3,897 +3,1215 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Traitors – Host</title>
+<title>The Traitors – Host Console</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  :root {
-    --gold: #c9a84c;
-    --gold-light: #e8c97a;
-    --gold-dim: rgba(201,168,76,0.18);
-    --dark: #0c0907;
-    --dark2: #161009;
-    --parchment: #f5ecd7;
-    --blood: #8b1a1a;
-    --blood-red: #c0392b;
-    --fog: rgba(201,168,76,0.06);
-  }
+:root {
+  --gold: #c9a84c;
+  --gold-light: #e8c97a;
+  --gold-dim: rgba(201,168,76,0.15);
+  --dark: #0c0907;
+  --dark2: #110d09;
+  --dark3: #181310;
+  --parchment: #f5ecd7;
+  --blood: #8b1a1a;
+  --blood-red: #c0392b;
+  --blood-dim: rgba(139,26,26,0.18);
+  --blue: #2a72a8;
+  --blue-dim: rgba(42,114,168,0.15);
+  --green: #27ae60;
+  --fog: rgba(201,168,76,0.05);
+}
 
-  body {
-    background: var(--dark);
-    font-family: 'Crimson Text', serif;
-    color: var(--parchment);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+body {
+  background: var(--dark);
+  font-family: 'Crimson Text', serif;
+  color: var(--parchment);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
 
-  /* ── SETUP SCREEN ── */
-  #setupScreen {
-    max-width: 520px;
-    margin: 0 auto;
-    padding: 3rem 2rem;
-  }
+/* ─────────────── SETUP SCREEN ─────────────── */
+#setupScreen {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+}
+.logo { text-align: center; margin-bottom: 2.5rem; }
+.logo-eyebrow {
+  font-size: 11px; letter-spacing: 5px; color: var(--gold);
+  opacity: 0.6; text-transform: uppercase; margin-bottom: 0.5rem;
+}
+.logo h1 {
+  font-family: 'Cinzel', serif; font-size: 44px; font-weight: 900;
+  color: var(--gold); letter-spacing: 4px;
+  text-shadow: 0 0 60px rgba(201,168,76,0.4);
+}
+.logo-sub { font-style: italic; color: rgba(245,236,215,0.35); font-size: 15px; margin-top: 0.4rem; }
+.setup-card {
+  background: rgba(245,236,215,0.03); border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 14px; padding: 1.75rem; margin-bottom: 1.25rem;
+}
+.setup-label {
+  font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 2.5px;
+  color: var(--gold); text-transform: uppercase; margin-bottom: 1rem;
+}
+.firebase-fields { display: grid; gap: 10px; }
+input[type=text], input[type=password] {
+  width: 100%; background: rgba(0,0,0,0.35); border: 1px solid rgba(201,168,76,0.25);
+  border-radius: 8px; padding: 10px 14px; font-family: 'Crimson Text', serif;
+  font-size: 15px; color: var(--parchment); outline: none; transition: border-color 0.2s;
+}
+input[type=text]:focus, input[type=password]:focus { border-color: rgba(201,168,76,0.55); }
+input::placeholder { color: rgba(245,236,215,0.2); }
+.helper-text {
+  font-size: 12px; color: rgba(245,236,215,0.35); margin-top: 0.6rem;
+  font-style: italic; line-height: 1.5;
+}
+.btn-primary {
+  width: 100%; background: rgba(201,168,76,0.1); border: 1px solid var(--gold);
+  border-radius: 10px; padding: 13px; font-family: 'Cinzel', serif;
+  font-size: 14px; letter-spacing: 2px; color: var(--gold); cursor: pointer;
+  transition: background 0.2s; margin-top: 0.25rem;
+}
+.btn-primary:hover { background: rgba(201,168,76,0.22); }
+.btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+.error-msg {
+  background: rgba(139,26,26,0.2); border: 1px solid rgba(192,57,43,0.4);
+  border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #e88080;
+  margin-top: 0.75rem; display: none;
+}
 
-  .logo {
-    text-align: center;
-    margin-bottom: 2.5rem;
-  }
-  .logo-eyebrow {
-    font-size: 11px;
-    letter-spacing: 5px;
-    color: var(--gold);
-    opacity: 0.6;
-    text-transform: uppercase;
-    margin-bottom: 0.5rem;
-  }
-  .logo h1 {
-    font-family: 'Cinzel', serif;
-    font-size: 42px;
-    font-weight: 700;
-    color: var(--gold);
-    letter-spacing: 3px;
-    text-shadow: 0 0 40px rgba(201,168,76,0.35);
-  }
-  .logo-sub {
-    font-style: italic;
-    color: rgba(245,236,215,0.4);
-    font-size: 15px;
-    margin-top: 0.4rem;
-  }
+/* ─────────────── GAME SCREEN ─────────────── */
+#gameScreen { display: none; min-height: 100vh; padding-bottom: 60px; }
 
-  .setup-card {
-    background: rgba(245,236,215,0.03);
-    border: 1px solid rgba(201,168,76,0.2);
-    border-radius: 14px;
-    padding: 1.75rem;
-    margin-bottom: 1.25rem;
-  }
+.host-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 2rem; border-bottom: 1px solid rgba(201,168,76,0.12);
+  flex-wrap: wrap; gap: 10px; background: rgba(8,6,4,0.6);
+  position: sticky; top: 0; z-index: 50; backdrop-filter: blur(8px);
+}
+.host-title {
+  font-family: 'Cinzel', serif; font-size: 20px; color: var(--gold); letter-spacing: 3px;
+}
+.round-pill {
+  font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 2px; color: var(--gold);
+  background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.3);
+  padding: 4px 14px; border-radius: 20px;
+}
+.host-stats { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.stat-chip {
+  font-family: 'Cinzel', serif; font-size: 11px;
+  color: rgba(245,236,215,0.45); letter-spacing: 1px;
+}
+.stat-chip span { color: var(--gold-light); font-weight: 600; }
+.host-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-  .setup-label {
-    font-family: 'Cinzel', serif;
-    font-size: 11px;
-    letter-spacing: 2.5px;
-    color: var(--gold);
-    text-transform: uppercase;
-    margin-bottom: 1rem;
-  }
+.btn-sm {
+  background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.4);
+  border-radius: 8px; padding: 7px 16px; font-family: 'Cinzel', serif;
+  font-size: 11px; letter-spacing: 1.5px; color: var(--gold); cursor: pointer;
+  transition: background 0.2s; white-space: nowrap;
+}
+.btn-sm:hover { background: rgba(201,168,76,0.22); }
+.btn-sm:disabled { opacity: 0.3; cursor: not-allowed; }
 
-  .firebase-fields { display: grid; gap: 10px; }
+.btn-blood {
+  background: rgba(139,26,26,0.15); border: 1px solid rgba(192,57,43,0.45);
+  border-radius: 8px; padding: 7px 16px; font-family: 'Cinzel', serif;
+  font-size: 11px; letter-spacing: 1.5px; color: #e88080; cursor: pointer;
+  transition: background 0.2s; white-space: nowrap;
+}
+.btn-blood:hover { background: rgba(139,26,26,0.3); }
+.btn-blood:disabled { opacity: 0.3; cursor: not-allowed; }
 
-  input[type=text], input[type=password] {
-    width: 100%;
-    background: rgba(0,0,0,0.35);
-    border: 1px solid rgba(201,168,76,0.25);
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-family: 'Crimson Text', serif;
-    font-size: 15px;
-    color: var(--parchment);
-    outline: none;
-    transition: border-color 0.2s;
-  }
-  input[type=text]:focus, input[type=password]:focus {
-    border-color: rgba(201,168,76,0.55);
-  }
-  input::placeholder { color: rgba(245,236,215,0.2); }
+.btn-blue {
+  background: rgba(42,114,168,0.15); border: 1px solid rgba(42,114,168,0.45);
+  border-radius: 8px; padding: 7px 16px; font-family: 'Cinzel', serif;
+  font-size: 11px; letter-spacing: 1.5px; color: #74b9ff; cursor: pointer;
+  transition: background 0.2s; white-space: nowrap;
+}
+.btn-blue:hover { background: rgba(42,114,168,0.3); }
+.btn-blue:disabled { opacity: 0.3; cursor: not-allowed; }
 
-  .helper-text {
-    font-size: 12px;
-    color: rgba(245,236,215,0.4);
-    margin-top: 0.5rem;
-    font-style: italic;
-    line-height: 1.5;
-  }
+.btn-green {
+  background: rgba(39,174,96,0.15); border: 1px solid rgba(39,174,96,0.4);
+  border-radius: 8px; padding: 7px 16px; font-family: 'Cinzel', serif;
+  font-size: 11px; letter-spacing: 1.5px; color: #2ecc71; cursor: pointer;
+  transition: background 0.2s; white-space: nowrap;
+}
+.btn-green:hover { background: rgba(39,174,96,0.3); }
+.btn-green:disabled { opacity: 0.3; cursor: not-allowed; }
 
-  .btn-primary {
-    width: 100%;
-    background: rgba(201,168,76,0.12);
-    border: 1px solid var(--gold);
-    border-radius: 10px;
-    padding: 13px;
-    font-family: 'Cinzel', serif;
-    font-size: 14px;
-    letter-spacing: 2px;
-    color: var(--gold);
-    cursor: pointer;
-    transition: background 0.2s;
-    margin-top: 0.25rem;
-  }
-  .btn-primary:hover { background: rgba(201,168,76,0.24); }
-  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+/* Join bar */
+.join-bar {
+  background: rgba(201,168,76,0.04); border-bottom: 1px solid rgba(201,168,76,0.1);
+  padding: 0.6rem 2rem; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.join-bar-label {
+  font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 2px;
+  color: rgba(201,168,76,0.45);
+}
+.join-bar-url { font-family: monospace; font-size: 12px; color: var(--gold-light); word-break: break-all; }
+.room-code-display {
+  font-family: 'Cinzel', serif; font-size: 16px; color: var(--gold);
+  background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.35);
+  padding: 3px 14px; border-radius: 6px; letter-spacing: 4px; font-weight: 700;
+}
+.copy-btn {
+  background: none; border: 1px solid rgba(201,168,76,0.25); border-radius: 6px;
+  padding: 3px 10px; font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 1px;
+  color: rgba(201,168,76,0.6); cursor: pointer; transition: all 0.2s;
+}
+.copy-btn:hover { border-color: var(--gold); color: var(--gold); }
 
-  .error-msg {
-    background: rgba(139,26,26,0.2);
-    border: 1px solid rgba(192,57,43,0.4);
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 13px;
-    color: #e88080;
-    margin-top: 0.75rem;
-    display: none;
-  }
+/* Phase banner */
+.phase-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 2rem; gap: 1rem; flex-wrap: wrap;
+  border-bottom: 1px solid rgba(201,168,76,0.08);
+}
+.phase-label {
+  font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 2px;
+  color: rgba(245,236,215,0.5); text-transform: uppercase;
+}
+.phase-desc { font-style: italic; color: rgba(245,236,215,0.4); font-size: 14px; margin-top: 2px; }
+.phase-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
-  /* ── HOST GAME SCREEN ── */
-  #gameScreen { display: none; min-height: 100vh; }
+/* Timer */
+.timer-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  background: rgba(0,0,0,0.3); border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 12px; padding: 0.6rem 1.5rem; min-width: 110px; text-align: center;
+}
+.timer-num {
+  font-family: 'Cinzel', serif; font-size: 42px; font-weight: 700;
+  color: var(--gold); line-height: 1; transition: color 0.3s;
+  text-shadow: 0 0 20px rgba(201,168,76,0.3);
+}
+.timer-num.urgent {
+  color: var(--blood-red); text-shadow: 0 0 30px rgba(192,57,43,0.5);
+  animation: timerPulse 0.5s ease-in-out infinite alternate;
+}
+@keyframes timerPulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+.timer-label {
+  font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 2px;
+  color: rgba(201,168,76,0.45); text-transform: uppercase; margin-top: 2px;
+}
 
-  .host-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.25rem 2rem;
-    border-bottom: 1px solid rgba(201,168,76,0.15);
-    flex-wrap: wrap;
-    gap: 12px;
-  }
+/* Main content area */
+.main-content { padding: 1.5rem 2rem; }
 
-  .host-title {
-    font-family: 'Cinzel', serif;
-    font-size: 22px;
-    color: var(--gold);
-    letter-spacing: 2px;
-  }
+/* Teams layout */
+.teams-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem;
+}
+@media (max-width: 700px) { .teams-row { grid-template-columns: 1fr; } }
 
-  .round-pill {
-    font-family: 'Cinzel', serif;
-    font-size: 12px;
-    letter-spacing: 2px;
-    color: var(--gold);
-    background: var(--gold-dim);
-    border: 1px solid rgba(201,168,76,0.35);
-    padding: 5px 16px;
-    border-radius: 20px;
-  }
+.team-panel {
+  background: rgba(245,236,215,0.02); border-radius: 14px;
+  border: 1px solid rgba(201,168,76,0.12); overflow: hidden;
+}
+.team-panel.team-a { border-top: 3px solid var(--blue); }
+.team-panel.team-b { border-top: 3px solid var(--gold); }
+.team-panel.voting-active { box-shadow: 0 0 0 1px rgba(201,168,76,0.25), 0 8px 40px rgba(0,0,0,0.4); }
 
-  .host-stats {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
+.team-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.875rem 1.1rem; border-bottom: 1px solid rgba(201,168,76,0.1);
+}
+.team-title {
+  font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 2px; font-weight: 700;
+}
+.team-a .team-title { color: #74b9ff; }
+.team-b .team-title { color: var(--gold); }
+.team-meta { font-family: 'Cinzel', serif; font-size: 10px; color: rgba(245,236,215,0.3); letter-spacing: 1px; }
 
-  .stat-chip {
-    font-family: 'Cinzel', serif;
-    font-size: 12px;
-    color: rgba(245,236,215,0.55);
-    letter-spacing: 1px;
-  }
+.team-voting-badge {
+  font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 2px;
+  padding: 3px 10px; border-radius: 10px; text-transform: uppercase;
+  animation: badgePulse 1.5s ease-in-out infinite alternate;
+}
+.team-voting-badge.active {
+  background: rgba(192,57,43,0.2); border: 1px solid rgba(192,57,43,0.4); color: #e88080;
+}
+.team-voting-badge.waiting {
+  background: rgba(245,236,215,0.04); border: 1px solid rgba(245,236,215,0.1);
+  color: rgba(245,236,215,0.3); animation: none;
+}
+@keyframes badgePulse { from { opacity: 0.7; } to { opacity: 1; } }
 
-  .stat-chip span {
-    color: var(--gold-light);
-    font-weight: 600;
-  }
+.team-players { padding: 0.75rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
 
-  .host-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
+/* Player card in team panel */
+.player-tile {
+  background: rgba(245,236,215,0.03); border: 1px solid rgba(201,168,76,0.12);
+  border-radius: 10px; padding: 0.75rem 0.6rem; text-align: center;
+  transition: border-color 0.3s, background 0.3s; position: relative;
+}
+.player-tile.has-voted { border-color: rgba(201,168,76,0.3); background: rgba(201,168,76,0.05); }
+.player-tile.eliminated { background: rgba(139,26,26,0.07); border-color: rgba(192,57,43,0.3); }
+.player-tile.claimed { border-color: rgba(39,174,96,0.3); }
 
-  .btn-sm {
-    background: rgba(201,168,76,0.1);
-    border: 1px solid rgba(201,168,76,0.4);
-    border-radius: 8px;
-    padding: 7px 16px;
-    font-family: 'Cinzel', serif;
-    font-size: 11px;
-    letter-spacing: 1.5px;
-    color: var(--gold);
-    cursor: pointer;
-    transition: background 0.2s;
-    white-space: nowrap;
-  }
-  .btn-sm:hover { background: rgba(201,168,76,0.22); }
-  .btn-sm:disabled { opacity: 0.3; cursor: not-allowed; }
+.tile-photo-wrap { position: relative; width: 52px; height: 52px; margin: 0 auto 8px; }
+.tile-photo {
+  width: 52px; height: 52px; border-radius: 50%; object-fit: cover;
+  border: 2px solid rgba(201,168,76,0.35); display: block;
+}
+.tile-initials {
+  width: 52px; height: 52px; border-radius: 50%; background: rgba(201,168,76,0.1);
+  border: 2px solid rgba(201,168,76,0.3); display: flex; align-items: center;
+  justify-content: center; font-family: 'Cinzel', serif; font-size: 16px;
+  font-weight: 700; color: var(--gold);
+}
+.elim-x {
+  position: absolute; inset: 0; border-radius: 50%; background: rgba(139,26,26,0.65);
+  display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.4s;
+}
+.player-tile.eliminated .elim-x { opacity: 1; }
+.elim-x svg { width: 24px; height: 24px; }
+.voted-tick {
+  position: absolute; bottom: 0; right: 0; width: 18px; height: 18px;
+  border-radius: 50%; background: var(--gold); display: flex; align-items: center;
+  justify-content: center; opacity: 0; transition: opacity 0.2s;
+}
+.player-tile.has-voted .voted-tick { opacity: 1; }
+.voted-tick svg { width: 10px; height: 10px; }
+.claimed-dot {
+  position: absolute; top: 0; right: 0; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--green); border: 2px solid var(--dark2);
+  opacity: 0; transition: opacity 0.2s;
+}
+.player-tile.claimed .claimed-dot { opacity: 1; }
 
-  .btn-danger {
-    background: rgba(139,26,26,0.15);
-    border: 1px solid rgba(192,57,43,0.45);
-    border-radius: 8px;
-    padding: 7px 16px;
-    font-family: 'Cinzel', serif;
-    font-size: 11px;
-    letter-spacing: 1.5px;
-    color: #e88080;
-    cursor: pointer;
-    transition: background 0.2s;
-    white-space: nowrap;
-  }
-  .btn-danger:hover { background: rgba(139,26,26,0.3); }
+.tile-name { font-family: 'Cinzel', serif; font-size: 11px; color: var(--parchment); line-height: 1.3; }
+.player-tile.eliminated .tile-name { color: rgba(245,236,215,0.25); text-decoration: line-through; text-decoration-color: var(--blood-red); }
+.tile-votes { font-family: 'Cinzel', serif; font-size: 18px; color: var(--gold); font-weight: 700; min-height: 24px; margin-top: 4px; }
+.tile-votes.top-vote { color: var(--blood-red); }
+.tile-bar { height: 3px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+.tile-bar-fill { height: 100%; border-radius: 2px; background: var(--gold); transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+.player-tile.eliminated .tile-bar-fill { background: var(--blood-red); }
 
-  /* join info bar */
-  .join-bar {
-    background: rgba(201,168,76,0.05);
-    border-bottom: 1px solid rgba(201,168,76,0.12);
-    padding: 0.6rem 2rem;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-  .join-bar-label {
-    font-family: 'Cinzel', serif;
-    font-size: 10px;
-    letter-spacing: 2px;
-    color: rgba(201,168,76,0.5);
-  }
-  .join-bar-url {
-    font-family: monospace;
-    font-size: 13px;
-    color: var(--gold-light);
-  }
-  .room-code-display {
-    font-family: 'Cinzel', serif;
-    font-size: 14px;
-    color: var(--gold);
-    background: var(--gold-dim);
-    border: 1px solid rgba(201,168,76,0.35);
-    padding: 3px 12px;
-    border-radius: 6px;
-    letter-spacing: 3px;
-  }
+/* Results tally */
+.tally-section { margin-bottom: 1.5rem; }
+.tally-title {
+  font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 3px;
+  color: var(--gold); text-transform: uppercase; margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem; border-bottom: 1px solid rgba(201,168,76,0.15);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.tally-row {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  background: rgba(245,236,215,0.02); border: 1px solid rgba(201,168,76,0.09);
+  border-radius: 10px; margin-bottom: 6px; transition: all 0.4s;
+}
+.tally-row.will-elim { background: rgba(139,26,26,0.1); border-color: rgba(192,57,43,0.4); }
+.tally-avatar-sm {
+  width: 32px; height: 32px; border-radius: 50%; object-fit: cover;
+  border: 1px solid rgba(201,168,76,0.25); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel', serif; font-size: 11px; color: var(--gold);
+  background: var(--gold-dim);
+}
+.tally-name { font-family: 'Cinzel', serif; font-size: 12px; color: var(--parchment); min-width: 90px; flex: 1; }
+.tally-bar-wrap { flex: 1; height: 7px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+.tally-bar-fill { height: 100%; border-radius: 3px; background: var(--gold); transition: width 1s cubic-bezier(0.4,0,0.2,1); }
+.tally-row.will-elim .tally-bar-fill { background: var(--blood-red); }
+.tally-count { font-family: 'Cinzel', serif; font-size: 13px; color: var(--gold); min-width: 28px; text-align: right; }
+.tally-row.will-elim .tally-count { color: var(--blood-red); }
+.elim-pill {
+  font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 1px;
+  background: var(--blood); border: 1px solid rgba(192,57,43,0.4);
+  color: #e88080; padding: 2px 7px; border-radius: 10px;
+}
 
-  /* players grid */
-  .players-section { padding: 1.5rem 2rem; }
+/* Tie warning */
+.tie-warning {
+  background: rgba(241,196,15,0.08); border: 1px solid rgba(241,196,15,0.3);
+  border-radius: 10px; padding: 0.875rem 1rem; margin-bottom: 1rem;
+  font-size: 13px; color: #f1c40f; display: flex; align-items: center; gap: 8px;
+}
 
-  .players-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 16px;
-    margin-bottom: 2rem;
-  }
+/* Elim confirm banner */
+.elim-confirm {
+  background: rgba(139,26,26,0.12); border: 1px solid rgba(192,57,43,0.35);
+  border-radius: 14px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
+  text-align: center; animation: fadeUp 0.5s ease both;
+}
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.elim-confirm-title { font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 2px; color: rgba(232,128,128,0.7); margin-bottom: 0.5rem; }
+.elim-confirm-names { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.elim-name-chip {
+  font-family: 'Cinzel', serif; font-size: 13px; color: #e88080;
+  background: rgba(139,26,26,0.15); border: 1px solid rgba(192,57,43,0.3);
+  padding: 4px 14px; border-radius: 20px;
+}
 
-  .player-card {
-    background: rgba(245,236,215,0.04);
-    border: 1px solid rgba(201,168,76,0.18);
-    border-radius: 14px;
-    padding: 1.25rem 1rem;
-    text-align: center;
-    transition: border-color 0.4s, background 0.4s;
-    position: relative;
-    overflow: hidden;
-  }
+/* Vote progress */
+.vote-progress-bar {
+  display: flex; align-items: center; gap: 10px; padding: 0.75rem 1.1rem;
+  background: rgba(201,168,76,0.05); border-bottom: 1px solid rgba(201,168,76,0.1);
+}
+.vote-progress-label { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 1.5px; color: rgba(245,236,215,0.4); white-space: nowrap; }
+.vote-progress-track { flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+.vote-progress-fill { height: 100%; background: var(--gold); border-radius: 2px; transition: width 0.5s; }
+.vote-progress-count { font-family: 'Cinzel', serif; font-size: 11px; color: var(--gold); white-space: nowrap; }
 
-  .player-card.has-voted {
-    border-color: rgba(201,168,76,0.38);
-  }
+/* Winners */
+.winners-section { text-align: center; padding: 2rem 0; }
+.winners-title {
+  font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 5px; color: var(--gold);
+  text-transform: uppercase; margin-bottom: 0.5rem;
+}
+.winners-subtitle { font-style: italic; color: rgba(245,236,215,0.35); font-size: 16px; margin-bottom: 2.5rem; }
+.winners-row { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem; }
+.winner-card {
+  text-align: center; animation: winnerReveal 0.8s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+.winner-card:nth-child(2) { animation-delay: 0.25s; }
+.winner-card:nth-child(3) { animation-delay: 0.5s; }
+@keyframes winnerReveal {
+  from { opacity: 0; transform: scale(0.4) translateY(30px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.winner-crown { font-size: 2rem; margin-bottom: 0.75rem; }
+.winner-avatar {
+  width: 110px; height: 110px; border-radius: 50%; margin: 0 auto 14px;
+  border: 3px solid var(--gold); box-shadow: 0 0 40px rgba(201,168,76,0.4);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel', serif; font-size: 2.2rem; font-weight: 700;
+  color: var(--gold); background: var(--gold-dim); overflow: hidden;
+}
+.winner-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.winner-name {
+  font-family: 'Cinzel', serif; font-size: 15px; color: var(--gold-light);
+  letter-spacing: 1px; font-weight: 700;
+}
+.winner-sub { font-style: italic; color: rgba(245,236,215,0.35); font-size: 13px; margin-top: 3px; }
 
-  .player-card.eliminated {
-    border-color: rgba(139,26,26,0.5);
-    background: rgba(139,26,26,0.07);
-  }
+/* Section headings */
+.section-label {
+  font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 3px;
+  color: rgba(245,236,215,0.2); text-transform: uppercase; margin-bottom: 0.75rem;
+}
 
-  .photo-wrap {
-    position: relative;
-    width: 72px;
-    height: 72px;
-    margin: 0 auto 12px;
-  }
+/* Eliminated strip */
+.eliminated-section { padding: 0.75rem 2rem; border-top: 1px solid rgba(201,168,76,0.08); }
+.eliminated-strip { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 0.5rem; }
+.elim-chip {
+  font-family: 'Cinzel', serif; font-size: 10px; color: rgba(192,57,43,0.6);
+  background: rgba(139,26,26,0.1); border: 1px solid rgba(192,57,43,0.2);
+  padding: 3px 10px; border-radius: 20px; letter-spacing: 1px;
+}
 
-  .player-photo {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid rgba(201,168,76,0.4);
-    display: block;
-  }
+/* Lobby randomize area */
+.lobby-controls {
+  background: rgba(201,168,76,0.04); border: 1px solid rgba(201,168,76,0.12);
+  border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+}
+.lobby-info { flex: 1; }
+.lobby-info h3 { font-family: 'Cinzel', serif; font-size: 13px; color: var(--gold); margin-bottom: 4px; letter-spacing: 1px; }
+.lobby-info p { font-size: 13px; color: rgba(245,236,215,0.4); font-style: italic; }
+.lobby-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 
-  .player-initials {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    background: rgba(201,168,76,0.14);
-    border: 2px solid rgba(201,168,76,0.35);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Cinzel', serif;
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--gold);
-  }
-
-  .elim-overlay {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: rgba(139,26,26,0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.6s;
-  }
-  .elim-overlay svg { width: 36px; height: 36px; }
-  .player-card.eliminated .elim-overlay { opacity: 1; }
-
-  .voted-tick {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: rgba(201,168,76,0.9);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-  .player-card.has-voted .voted-tick { opacity: 1; }
-  .voted-tick svg { width: 12px; height: 12px; }
-
-  .player-name {
-    font-family: 'Cinzel', serif;
-    font-size: 13px;
-    color: var(--parchment);
-    margin-bottom: 4px;
-    font-weight: 600;
-  }
-  .player-card.eliminated .player-name {
-    color: rgba(245,236,215,0.3);
-    text-decoration: line-through;
-    text-decoration-color: var(--blood-red);
-  }
-
-  .player-vote-count {
-    font-family: 'Cinzel', serif;
-    font-size: 20px;
-    color: var(--gold);
-    font-weight: 600;
-    height: 28px;
-  }
-
-  .mini-bar {
-    margin-top: 8px;
-    height: 3px;
-    background: rgba(255,255,255,0.06);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .mini-bar-fill {
-    height: 100%;
-    border-radius: 2px;
-    background: var(--gold);
-    transition: width 0.9s cubic-bezier(0.4,0,0.2,1);
-  }
-  .player-card.eliminated .mini-bar-fill { background: var(--blood-red); }
-
-  /* results panel */
-  #resultsPanel {
-    display: none;
-    padding: 0 2rem 2rem;
-  }
-
-  .results-title {
-    font-family: 'Cinzel', serif;
-    font-size: 14px;
-    letter-spacing: 3px;
-    color: var(--gold);
-    text-transform: uppercase;
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid rgba(201,168,76,0.18);
-  }
-
-  .results-list { display: grid; gap: 8px; margin-bottom: 1.5rem; }
-
-  .result-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    background: rgba(245,236,215,0.02);
-    border: 1px solid rgba(201,168,76,0.12);
-    border-radius: 10px;
-    transition: border-color 0.5s, background 0.5s;
-  }
-
-  .result-row.top { border-color: rgba(192,57,43,0.5); background: rgba(139,26,26,0.09); }
-
-  .result-photo-sm {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1px solid rgba(201,168,76,0.3);
-    flex-shrink: 0;
-  }
-
-  .result-initials-sm {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: var(--gold-dim);
-    border: 1px solid rgba(201,168,76,0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Cinzel', serif;
-    font-size: 12px;
-    color: var(--gold);
-    flex-shrink: 0;
-  }
-
-  .result-name {
-    font-family: 'Cinzel', serif;
-    font-size: 13px;
-    color: var(--parchment);
-    min-width: 100px;
-  }
-
-  .result-bar-wrap {
-    flex: 1;
-    height: 8px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-
-  .result-bar-fill {
-    height: 100%;
-    border-radius: 4px;
-    background: var(--gold);
-    transition: width 1.1s cubic-bezier(0.4,0,0.2,1);
-  }
-
-  .result-row.top .result-bar-fill { background: var(--blood-red); }
-
-  .result-pct {
-    font-family: 'Cinzel', serif;
-    font-size: 13px;
-    color: var(--gold);
-    min-width: 40px;
-    text-align: right;
-  }
-
-  .result-vcount {
-    font-size: 12px;
-    color: rgba(245,236,215,0.35);
-    min-width: 30px;
-    text-align: right;
-  }
-
-  .elim-banner {
-    background: rgba(139,26,26,0.12);
-    border: 1px solid rgba(192,57,43,0.38);
-    border-radius: 14px;
-    padding: 1.5rem;
-    text-align: center;
-    animation: fadeUp 0.7s ease both;
-  }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .elim-name {
-    font-family: 'Cinzel', serif;
-    font-size: 26px;
-    color: #e88080;
-    font-weight: 700;
-    margin-bottom: 0.3rem;
-  }
-
-  .elim-caption {
-    font-style: italic;
-    color: rgba(245,236,215,0.45);
-    font-size: 15px;
-  }
-
-  .results-actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 1.25rem;
-    flex-wrap: wrap;
-  }
-
-  .results-actions .btn-sm { flex: 1; text-align: center; }
-
-  /* status bar */
-  .status-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(12,9,7,0.95);
-    border-top: 1px solid rgba(201,168,76,0.15);
-    padding: 0.6rem 2rem;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 12px;
-    color: rgba(245,236,215,0.35);
-    font-family: 'Cinzel', serif;
-    letter-spacing: 1px;
-    z-index: 100;
-  }
-  .status-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #2ecc71;
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-    0%,100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-
-  /* Eliminated players section */
-  .eliminated-list {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin: 0 2rem 1rem;
-  }
-
-  .elim-chip {
-    font-family: 'Cinzel', serif;
-    font-size: 11px;
-    color: rgba(192,57,43,0.7);
-    background: rgba(139,26,26,0.1);
-    border: 1px solid rgba(192,57,43,0.25);
-    padding: 3px 12px;
-    border-radius: 20px;
-    letter-spacing: 1px;
-  }
-
-  .section-label {
-    font-family: 'Cinzel', serif;
-    font-size: 10px;
-    letter-spacing: 3px;
-    color: rgba(245,236,215,0.25);
-    text-transform: uppercase;
-    padding: 0 2rem;
-    margin-bottom: 0.5rem;
-  }
+/* Status bar */
+.status-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(10,8,6,0.96); border-top: 1px solid rgba(201,168,76,0.12);
+  padding: 0.5rem 2rem; display: flex; align-items: center; gap: 10px;
+  font-size: 11px; color: rgba(245,236,215,0.3); font-family: 'Cinzel', serif;
+  letter-spacing: 1px; z-index: 100;
+}
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: #2ecc71;
+  animation: statusPulse 2s infinite;
+}
+@keyframes statusPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
 </style>
 </head>
 <body>
 
-<!-- ── SETUP ── -->
+<!-- ── SETUP SCREEN ── -->
 <div id="setupScreen">
   <div class="logo">
-    <div class="logo-eyebrow">✦ Workplace Edition ✦</div>
+    <div class="logo-eyebrow">✦ Host Console ✦</div>
     <h1>THE TRAITORS</h1>
-    <div class="logo-sub">Connect your Firebase to begin</div>
+    <div class="logo-sub">Connect Firebase to begin</div>
   </div>
 
   <div class="setup-card">
-    <div class="setup-label">Firebase Config</div>
+    <div class="setup-label">Firebase Credentials</div>
     <div class="firebase-fields">
-      <input type="text" id="fb_apiKey" placeholder="apiKey" />
-      <input type="text" id="fb_projectId" placeholder="projectId" />
-      <input type="text" id="fb_appId" placeholder="appId" />
+      <input type="text"     id="fb_apiKey"    placeholder="apiKey" autocomplete="off" />
+      <input type="text"     id="fb_projectId" placeholder="projectId" autocomplete="off" />
+      <input type="text"     id="fb_appId"     placeholder="appId" autocomplete="off" />
     </div>
     <div class="helper-text">
-      Get these from Firebase Console → Project Settings → Your apps → Web app config.<br>
-      Values are saved in your browser for next time.
+      Firebase Console → Project Settings → Your apps → Web app config.<br>
+      These are saved in your browser for next time.
     </div>
     <div id="fbError" class="error-msg"></div>
-    <button class="btn-primary" id="connectBtn" onclick="connectFirebase()">Connect &amp; Open Host Room</button>
+    <button class="btn-primary" onclick="connectFirebase()">Connect &amp; Open Host Room</button>
   </div>
 
   <div class="setup-card">
-    <div class="setup-label">Players (edit players.js)</div>
+    <div class="setup-label">Players Setup</div>
     <div class="helper-text">
-      Add colleagues to <code style="color:var(--gold-light)">players.js</code> in this folder. Each player has a name and optional photo filename inside <code style="color:var(--gold-light)">images/</code>.<br><br>
-      <strong style="color:var(--gold);font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;">Example:</strong><br>
-      <code style="color:var(--gold-light);font-size:12px;">{ name: "Alice Smith", photo: "alice.jpg" }</code>
+      Edit <code style="color:var(--gold-light)">players.js</code> with your 50 player names and optional photo filenames.<br>
+      Drop photo files into the <code style="color:var(--gold-light)">images/</code> folder. Then refresh and connect.
     </div>
   </div>
 </div>
 
-<!-- ── HOST GAME SCREEN ── -->
+<!-- ── GAME SCREEN ── -->
 <div id="gameScreen">
+
+  <!-- Header -->
   <div class="host-header">
-    <div style="display:flex;align-items:center;gap:16px;">
+    <div style="display:flex;align-items:center;gap:12px;">
       <div class="host-title">THE TRAITORS</div>
       <div class="round-pill" id="roundPill">Round 1</div>
     </div>
     <div class="host-stats">
-      <div class="stat-chip">Players online: <span id="onlineStat">0</span></div>
-      <div class="stat-chip">Votes cast: <span id="voteStat">0</span></div>
+      <div class="stat-chip">Players: <span id="statTotal">0</span></div>
+      <div class="stat-chip">Joined: <span id="statClaimed">0</span></div>
+      <div class="stat-chip">Active: <span id="statActive">0</span></div>
     </div>
     <div class="host-actions">
-      <button class="btn-sm" id="revealBtn" onclick="revealResults()" disabled>Reveal Results</button>
-      <button class="btn-sm" id="nextRoundBtn" onclick="nextRound()" style="display:none">Next Round</button>
-      <button class="btn-danger" onclick="resetGame()">Reset</button>
+      <button class="btn-blood" onclick="confirmReset()">Reset</button>
     </div>
   </div>
 
+  <!-- Join bar -->
   <div class="join-bar">
     <div class="join-bar-label">Players join at</div>
     <div class="join-bar-url" id="joinUrl">—</div>
-    <div class="join-bar-label" style="margin-left:12px;">Room code</div>
+    <div class="join-bar-label" style="margin-left:8px;">Code</div>
     <div class="room-code-display" id="roomCodeDisplay">—</div>
+    <button class="copy-btn" onclick="copyJoinUrl()">Copy URL</button>
   </div>
 
-  <div class="players-section">
-    <div class="players-grid" id="hostGrid"></div>
-  </div>
-
-  <div id="eliminatedSection" style="display:none;">
-    <div class="section-label">Eliminated</div>
-    <div class="eliminated-list" id="eliminatedList"></div>
-  </div>
-
-  <div id="resultsPanel">
-    <div class="results-title">The Verdict</div>
-    <div class="results-list" id="resultsList"></div>
-    <div id="elimBanner"></div>
-    <div class="results-actions">
-      <button class="btn-sm" id="nextRoundBtn2" onclick="nextRound()">Next Round</button>
-      <button class="btn-danger" onclick="resetGame()">Reset Game</button>
+  <!-- Phase banner -->
+  <div class="phase-banner" id="phaseBanner">
+    <div>
+      <div class="phase-label" id="phaseLabel">Lobby</div>
+      <div class="phase-desc" id="phaseDesc">Randomise teams and wait for players to join</div>
     </div>
+    <div class="phase-actions" id="phaseActions"></div>
   </div>
 
-  <div style="height:48px;"></div>
+  <!-- Vote progress bar (shown during voting) -->
+  <div class="vote-progress-bar" id="voteProgressBar" style="display:none">
+    <div class="vote-progress-label">VOTES CAST</div>
+    <div class="vote-progress-track"><div class="vote-progress-fill" id="voteProgressFill" style="width:0%"></div></div>
+    <div class="vote-progress-count" id="voteProgressCount">0 / 0</div>
+  </div>
+
+  <!-- Main dynamic content -->
+  <div class="main-content" id="mainContent"></div>
+
+  <!-- Eliminated strip -->
+  <div class="eliminated-section" id="eliminatedSection" style="display:none">
+    <div class="section-label">Eliminated Players</div>
+    <div class="eliminated-strip" id="eliminatedStrip"></div>
+  </div>
+
+  <div style="height:60px;"></div>
   <div class="status-bar">
     <div class="status-dot"></div>
-    <span id="statusText">Connected — waiting for votes</span>
+    <span id="statusText">Connected</span>
   </div>
 </div>
 
 <script src="players.js"></script>
 <script>
-// ── Firebase ──
-let db, roomId, unsubscribe;
+// ═══════════════════════════════════════════════════
+//  CONFIG & CONSTANTS
+// ═══════════════════════════════════════════════════
 const LS_KEY = 'traitors_fb_config';
+const VOTE_SECS = 40;
+const ROUND_CFG = {
+  1:     { label: 'Round 1',     epTeam: 10, votes: 2, next: 2 },
+  2:     { label: 'Round 2',     epTeam:  7, votes: 2, next: 3 },
+  3:     { label: 'Round 3',     epTeam:  5, votes: 2, next: 'final' },
+  final: { label: 'Final Round', epTotal: 3, votes: 1, next: null }
+};
 
+// ═══════════════════════════════════════════════════
+//  GLOBALS
+// ═══════════════════════════════════════════════════
+let db, roomId, unsubRoom, lastState, timerInterval, advancing = false;
+
+// ═══════════════════════════════════════════════════
+//  SETUP
+// ═══════════════════════════════════════════════════
 function loadSavedConfig() {
   try {
     const c = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
-    if (c.apiKey) document.getElementById('fb_apiKey').value = c.apiKey;
+    if (c.apiKey)    document.getElementById('fb_apiKey').value    = c.apiKey;
     if (c.projectId) document.getElementById('fb_projectId').value = c.projectId;
-    if (c.appId) document.getElementById('fb_appId').value = c.appId;
+    if (c.appId)     document.getElementById('fb_appId').value     = c.appId;
   } catch(e) {}
 }
 
 function connectFirebase() {
-  const apiKey = document.getElementById('fb_apiKey').value.trim();
+  const apiKey    = document.getElementById('fb_apiKey').value.trim();
   const projectId = document.getElementById('fb_projectId').value.trim();
-  const appId = document.getElementById('fb_appId').value.trim();
-  const errEl = document.getElementById('fbError');
+  const appId     = document.getElementById('fb_appId').value.trim();
+  const errEl     = document.getElementById('fbError');
   errEl.style.display = 'none';
-
   if (!apiKey || !projectId || !appId) {
     errEl.textContent = 'Please fill in all three Firebase fields.';
-    errEl.style.display = 'block';
-    return;
+    errEl.style.display = 'block'; return;
   }
-
   try {
     if (firebase.apps.length) firebase.apps.forEach(a => a.delete());
     firebase.initializeApp({ apiKey, authDomain: `${projectId}.firebaseapp.com`, projectId, appId });
     db = firebase.firestore();
     localStorage.setItem(LS_KEY, JSON.stringify({ apiKey, projectId, appId }));
-    openHostRoom();
+    openHostRoom(apiKey, projectId, appId);
   } catch(e) {
     errEl.textContent = 'Firebase error: ' + e.message;
     errEl.style.display = 'block';
   }
 }
 
-// ── Room ──
+// ═══════════════════════════════════════════════════
+//  ROOM SETUP
+// ═══════════════════════════════════════════════════
 function genRoomCode() {
-  return Math.random().toString(36).substring(2,7).toUpperCase();
+  return Math.random().toString(36).substring(2, 7).toUpperCase();
 }
 
-async function openHostRoom() {
+async function openHostRoom(apiKey, projectId, appId) {
   roomId = genRoomCode();
   const initialState = {
     round: 1,
-    phase: 'voting',
-    votes: {},
-    hasVoted: {},
+    phase: 'lobby',
+    votingEndTime: null,
+    teams: { A: [], B: [] },
     eliminated: [],
-    revealed: false,
+    talliesA: {}, hasVotedA: {},
+    talliesB: {}, hasVotedB: {},
+    talliesFinal: {}, hasVotedFinal: {},
     players: PLAYERS.map(p => ({ name: p.name, photo: p.photo || null })),
+    claimedBy: {},
+    teamsRandomized: false,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
-  PLAYERS.forEach(p => { initialState.votes[p.name] = 0; });
 
   await db.collection('rooms').doc(roomId).set(initialState);
 
+  // Switch to game screen
   document.getElementById('setupScreen').style.display = 'none';
-  document.getElementById('gameScreen').style.display = 'block';
+  document.getElementById('gameScreen').style.display  = 'block';
   document.getElementById('roomCodeDisplay').textContent = roomId;
 
-  const playerUrl = `${location.origin}${location.pathname.replace('index.html','').replace(/\/$/, '')}/vote.html?room=${roomId}`;
-  document.getElementById('joinUrl').textContent = playerUrl;
+  // Build join URL with Firebase creds embedded (so players don't need to enter them)
+  const base = location.href.replace('index.html', '').replace(/\/?$/, '/');
+  const joinUrl = `${base}vote.html?room=${roomId}&pid=${encodeURIComponent(projectId)}&key=${encodeURIComponent(apiKey)}&aid=${encodeURIComponent(appId)}`;
+  document.getElementById('joinUrl').textContent = joinUrl;
+  document.getElementById('joinUrl').title = joinUrl;
 
   listenToRoom();
 }
 
-// ── Real-time listener ──
-let lastState = null;
+function copyJoinUrl() {
+  const url = document.getElementById('joinUrl').textContent;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy URL', 1500);
+  });
+}
 
+// ═══════════════════════════════════════════════════
+//  TEAMS
+// ═══════════════════════════════════════════════════
+async function randomizeTeams() {
+  const shuffled = [...PLAYERS].sort(() => Math.random() - 0.5);
+  const half = Math.ceil(shuffled.length / 2);
+  const teamA = shuffled.slice(0, half).map(p => p.name);
+  const teamB = shuffled.slice(half).map(p => p.name);
+  await db.collection('rooms').doc(roomId).update({
+    'teams.A': teamA,
+    'teams.B': teamB,
+    teamsRandomized: true
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  PHASE TRANSITIONS
+// ═══════════════════════════════════════════════════
+async function startTeamAVoting() {
+  if (!lastState.teamsRandomized) { alert('Please randomise teams first.'); return; }
+  const endTime = Date.now() + VOTE_SECS * 1000;
+  await db.collection('rooms').doc(roomId).update({
+    phase: 'team_a_voting',
+    votingEndTime: endTime,
+    talliesA: {}, hasVotedA: {}
+  });
+}
+
+async function finishTeamAVoting(manual = false) {
+  if (advancing) return;
+  if (lastState?.phase !== 'team_a_voting') return;
+  advancing = true;
+  stopTimerDisplay();
+  try {
+    await db.collection('rooms').doc(roomId).update({ phase: 'team_a_done', votingEndTime: null });
+  } finally { advancing = false; }
+}
+
+async function startTeamBVoting() {
+  const endTime = Date.now() + VOTE_SECS * 1000;
+  await db.collection('rooms').doc(roomId).update({
+    phase: 'team_b_voting',
+    votingEndTime: endTime,
+    talliesB: {}, hasVotedB: {}
+  });
+}
+
+async function finishTeamBVoting() {
+  if (advancing) return;
+  if (lastState?.phase !== 'team_b_voting') return;
+  advancing = true;
+  stopTimerDisplay();
+  try {
+    await db.collection('rooms').doc(roomId).update({ phase: 'team_b_done', votingEndTime: null });
+  } finally { advancing = false; }
+}
+
+async function confirmEliminations() {
+  const state = lastState;
+  const round  = state.round;
+  const cfg    = ROUND_CFG[round];
+  const activeA = (state.teams.A || []).filter(n => !(state.eliminated || []).includes(n));
+  const activeB = (state.teams.B || []).filter(n => !(state.eliminated || []).includes(n));
+  const elimA  = calcElims(state.talliesA || {}, activeA, cfg.epTeam);
+  const elimB  = calcElims(state.talliesB || {}, activeB, cfg.epTeam);
+  const newElim = [...(state.eliminated || []), ...elimA.toEliminate, ...elimB.toEliminate];
+
+  if (round < 3) {
+    // Advance to next regular round
+    await db.collection('rooms').doc(roomId).update({
+      eliminated: newElim,
+      round: round + 1,
+      phase: 'lobby',
+      talliesA: {}, hasVotedA: {},
+      talliesB: {}, hasVotedB: {}
+    });
+  } else {
+    // After round 3 → move to final prep
+    await db.collection('rooms').doc(roomId).update({
+      eliminated: newElim,
+      round: 'final',
+      phase: 'final_prep',
+      talliesA: {}, hasVotedA: {},
+      talliesB: {}, hasVotedB: {}
+    });
+  }
+}
+
+async function startFinalVoting() {
+  const endTime = Date.now() + VOTE_SECS * 1000;
+  await db.collection('rooms').doc(roomId).update({
+    phase: 'final_voting',
+    votingEndTime: endTime,
+    talliesFinal: {}, hasVotedFinal: {}
+  });
+}
+
+async function finishFinalVoting() {
+  if (advancing) return;
+  if (lastState?.phase !== 'final_voting') return;
+  advancing = true;
+  stopTimerDisplay();
+  try {
+    await db.collection('rooms').doc(roomId).update({ phase: 'final_done', votingEndTime: null });
+  } finally { advancing = false; }
+}
+
+async function confirmWinners() {
+  const state = lastState;
+  const activePlayers = (state.players || [])
+    .filter(p => !(state.eliminated || []).includes(p.name))
+    .map(p => p.name);
+  const { toEliminate } = calcElims(state.talliesFinal || {}, activePlayers, 3);
+  const newElim = [...(state.eliminated || []), ...toEliminate];
+  await db.collection('rooms').doc(roomId).update({ eliminated: newElim, phase: 'winners' });
+}
+
+async function triggerRevote() {
+  const endTime = Date.now() + VOTE_SECS * 1000;
+  await db.collection('rooms').doc(roomId).update({
+    phase: 'final_voting',
+    votingEndTime: endTime,
+    talliesFinal: {}, hasVotedFinal: {}
+  });
+}
+
+async function confirmReset() {
+  if (!confirm('Reset the entire game? This clears all votes and progress.')) return;
+  if (!roomId) { location.reload(); return; }
+  await db.collection('rooms').doc(roomId).update({
+    round: 1, phase: 'lobby', votingEndTime: null,
+    teams: { A: [], B: [] }, eliminated: [],
+    talliesA: {}, hasVotedA: {},
+    talliesB: {}, hasVotedB: {},
+    talliesFinal: {}, hasVotedFinal: {},
+    claimedBy: {}, teamsRandomized: false
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  ELIMINATION CALCULATION
+// ═══════════════════════════════════════════════════
+function calcElims(tallies, players, n) {
+  const sorted = [...players]
+    .map(name => ({ name, votes: tallies[name] || 0 }))
+    .sort((a, b) => b.votes - a.votes);
+  if (sorted.length === 0) return { toEliminate: [], hasTie: false };
+  if (sorted.length <= n)  return { toEliminate: sorted.map(p => p.name), hasTie: false };
+  const cutoff = sorted[n - 1].votes;
+  const next   = sorted[n]?.votes ?? -1;
+  const hasTie = cutoff === next;
+  const toEliminate = hasTie
+    ? sorted.filter(p => p.votes >= cutoff).map(p => p.name)
+    : sorted.slice(0, n).map(p => p.name);
+  return { toEliminate, hasTie };
+}
+
+// ═══════════════════════════════════════════════════
+//  TIMER
+// ═══════════════════════════════════════════════════
+function startTimerDisplay(endTime, onExpire) {
+  stopTimerDisplay();
+  timerInterval = setInterval(() => {
+    const secs = Math.ceil((endTime - Date.now()) / 1000);
+    const clamped = Math.max(0, secs);
+    updateTimerEl(clamped);
+    if (secs <= 0 && onExpire) { onExpire(); }
+  }, 200);
+}
+function stopTimerDisplay() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+function updateTimerEl(secs) {
+  const el = document.getElementById('timerNum');
+  if (!el) return;
+  el.textContent = secs;
+  el.className = 'timer-num' + (secs <= 10 && secs > 0 ? ' urgent' : '');
+}
+
+// ═══════════════════════════════════════════════════
+//  LISTEN + RENDER
+// ═══════════════════════════════════════════════════
 function listenToRoom() {
-  if (unsubscribe) unsubscribe();
-  unsubscribe = db.collection('rooms').doc(roomId).onSnapshot(snap => {
+  if (unsubRoom) unsubRoom();
+  unsubRoom = db.collection('rooms').doc(roomId).onSnapshot(snap => {
     if (!snap.exists) return;
     lastState = snap.data();
     renderHostView(lastState);
   });
 }
 
-// ── Render host ──
-function initials(name) {
-  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
-}
-
-function photoEl(p, cls, sizeClass) {
-  if (p.photo) {
-    return `<img src="images/${p.photo}" class="${cls}" alt="${p.name}" onerror="this.outerHTML='<div class=\\'${sizeClass || cls}\\' style=\\'display:flex;align-items:center;justify-content:center;font-family:Cinzel,serif;color:#c9a84c;\\'>${initials(p.name)}</div>'">`
-  }
-  return `<div class="${sizeClass || cls}">${initials(p.name)}</div>`;
-}
-
 function renderHostView(state) {
-  document.getElementById('roundPill').textContent = 'Round ' + (state.round || 1);
+  // Header stats
+  const total   = (state.players || []).length;
+  const claimed = Object.keys(state.claimedBy || {}).length;
+  const active  = total - (state.eliminated || []).length;
+  document.getElementById('statTotal').textContent   = total;
+  document.getElementById('statClaimed').textContent = claimed;
+  document.getElementById('statActive').textContent  = active;
 
-  const active = state.players.filter(p => !(state.eliminated || []).includes(p.name));
-  const votedCount = Object.keys(state.hasVoted || {}).filter(k => (state.hasVoted || {})[k]).length;
-  const totalVotes = active.reduce((s, p) => s + (state.votes[p.name] || 0), 0);
+  // Round pill
+  const cfg = ROUND_CFG[state.round] || ROUND_CFG[1];
+  document.getElementById('roundPill').textContent = cfg.label;
 
-  document.getElementById('onlineStat').textContent = state.players.length;
-  document.getElementById('voteStat').textContent = votedCount + ' / ' + active.length;
-
-  document.getElementById('revealBtn').disabled = votedCount === 0 || state.revealed;
-  document.getElementById('statusText').textContent = state.revealed
-    ? 'Results revealed — round ' + state.round
-    : `Waiting for votes — ${active.length - votedCount} remaining`;
-
-  // Players grid
-  const grid = document.getElementById('hostGrid');
-  grid.innerHTML = active.map(p => {
-    const v = state.votes[p.name] || 0;
-    const pct = state.revealed && totalVotes > 0 ? Math.round(v / totalVotes * 100) : 0;
-    const voted = (state.hasVoted || {})[p.name];
-    const isElim = (state.eliminated || []).includes(p.name);
-
-    return `<div class="player-card ${voted ? 'has-voted' : ''} ${isElim ? 'eliminated' : ''}">
-      <div class="photo-wrap">
-        ${p.photo
-          ? `<img src="images/${p.photo}" class="player-photo" alt="${p.name}" onerror="this.outerHTML='<div class=\\'player-initials\\'>${initials(p.name)}</div>'">`
-          : `<div class="player-initials">${initials(p.name)}</div>`}
-        <div class="elim-overlay">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#e88080" stroke-width="2.5" stroke-linecap="round">
-            <line x1="4" y1="4" x2="20" y2="20"/><line x1="20" y1="4" x2="4" y2="20"/>
-          </svg>
-        </div>
-        <div class="voted-tick">
-          <svg viewBox="0 0 12 12" fill="none" stroke="#1a1410" stroke-width="2" stroke-linecap="round">
-            <polyline points="2,6 5,9 10,3"/>
-          </svg>
-        </div>
-      </div>
-      <div class="player-name">${p.name}</div>
-      <div class="player-vote-count">${state.revealed ? v : ''}</div>
-      <div class="mini-bar"><div class="mini-bar-fill" style="width:${pct}%"></div></div>
-    </div>`;
-  }).join('');
-
-  // Eliminated sidebar
+  // Eliminated strip
   const elims = state.eliminated || [];
   if (elims.length > 0) {
     document.getElementById('eliminatedSection').style.display = 'block';
-    document.getElementById('eliminatedList').innerHTML = elims.map(e =>
-      `<div class="elim-chip">✕ ${e}</div>`
-    ).join('');
-  }
-
-  // Results panel
-  if (state.revealed) {
-    document.getElementById('resultsPanel').style.display = 'block';
-    document.getElementById('nextRoundBtn').style.display = 'inline-block';
-    renderResults(state, active, totalVotes);
+    document.getElementById('eliminatedStrip').innerHTML =
+      elims.map(n => `<div class="elim-chip">✕ ${n}</div>`).join('');
   } else {
-    document.getElementById('resultsPanel').style.display = 'none';
-    document.getElementById('nextRoundBtn').style.display = 'none';
+    document.getElementById('eliminatedSection').style.display = 'none';
   }
+
+  // Dispatch to phase renderer
+  const phase = state.phase || 'lobby';
+  if      (phase === 'lobby')          renderLobby(state);
+  else if (phase === 'team_a_voting')  renderVotingPhase(state, 'A');
+  else if (phase === 'team_a_done')    renderTeamDone(state, 'A');
+  else if (phase === 'team_b_voting')  renderVotingPhase(state, 'B');
+  else if (phase === 'team_b_done')    renderTeamDone(state, 'B');
+  else if (phase === 'final_prep')     renderFinalPrep(state);
+  else if (phase === 'final_voting')   renderFinalVotingPhase(state);
+  else if (phase === 'final_done')     renderFinalDone(state);
+  else if (phase === 'winners')        renderWinners(state);
 }
 
-function renderResults(state, active, totalVotes) {
-  const sorted = [...active].sort((a,b) => (state.votes[b.name]||0) - (state.votes[a.name]||0));
-  const maxV = state.votes[sorted[0]?.name] || 0;
-  const eliminated = sorted.filter(p => (state.votes[p.name]||0) === maxV)[0];
+// ─── Phase: LOBBY ───
+function renderLobby(state) {
+  stopTimerDisplay();
+  document.getElementById('voteProgressBar').style.display = 'none';
+  document.getElementById('phaseLabel').textContent = 'Lobby';
+  document.getElementById('phaseDesc').textContent  = 'Randomise teams, then start voting when ready';
 
-  document.getElementById('resultsList').innerHTML = sorted.map(p => {
-    const v = state.votes[p.name] || 0;
-    const pct = totalVotes > 0 ? Math.round(v / totalVotes * 100) : 0;
-    const isTop = p.name === eliminated?.name;
-    const photoHtml = p.photo
-      ? `<img src="images/${p.photo}" class="result-photo-sm" alt="${p.name}" onerror="this.outerHTML='<div class=\\'result-initials-sm\\'>${initials(p.name)}</div>'">`
-      : `<div class="result-initials-sm">${initials(p.name)}</div>`;
-    return `<div class="result-row ${isTop ? 'top' : ''}">
-      ${photoHtml}
-      <div class="result-name">${p.name}</div>
-      <div class="result-bar-wrap"><div class="result-bar-fill" style="width:${pct}%"></div></div>
-      <div class="result-pct">${pct}%</div>
-      <div class="result-vcount">${v}v</div>
+  const round     = state.round || 1;
+  const cfg       = ROUND_CFG[round] || ROUND_CFG[1];
+  const hasTeams  = (state.teams?.A?.length > 0);
+  const canStart  = hasTeams && state.teamsRandomized;
+  const statusMsg = !hasTeams ? 'No teams set yet — click Randomise Teams'
+                              : `Teams ready — ${Object.keys(state.claimedBy || {}).length} players have joined`;
+
+  document.getElementById('phaseActions').innerHTML = `
+    <button class="btn-sm" onclick="randomizeTeams()">🎲 Randomise Teams</button>
+    ${canStart ? `<button class="btn-green" onclick="startTeamAVoting()">▶ Start Round ${round} — Team A Votes</button>` : ''}
+  `;
+
+  let html = `<div class="lobby-controls">
+    <div class="lobby-info">
+      <h3>Round ${round} — ${cfg.epTeam} eliminated per team</h3>
+      <p>${statusMsg}</p>
+    </div>
+  </div>`;
+
+  if (hasTeams) {
+    html += buildTeamsHtml(state, null, false);
+  } else {
+    html += `<div style="text-align:center;padding:3rem;color:rgba(245,236,215,0.25);font-style:italic;">
+      Randomise teams to see Team A and Team B panels
     </div>`;
-  }).join('');
+  }
 
-  document.getElementById('elimBanner').innerHTML = eliminated ? `
-    <div class="elim-banner">
-      <div class="elim-name">✕ ${eliminated.name} ✕</div>
-      <div class="elim-caption">has been banished from the castle</div>
-    </div>` : '';
+  document.getElementById('mainContent').innerHTML = html;
+  document.getElementById('statusText').textContent = `Lobby — Round ${round}`;
 }
 
-async function revealResults() {
-  if (!lastState || !roomId) return;
-  const active = lastState.players.filter(p => !(lastState.eliminated||[]).includes(p.name));
-  const totalVotes = active.reduce((s,p) => s + (lastState.votes[p.name]||0), 0);
-  const sorted = [...active].sort((a,b) => (lastState.votes[b.name]||0) - (lastState.votes[a.name]||0));
-  const maxV = lastState.votes[sorted[0]?.name] || 0;
-  const newElim = sorted.filter(p => (lastState.votes[p.name]||0) === maxV)[0];
-  const newEliminated = [...(lastState.eliminated||[])];
-  if (newElim && !newEliminated.includes(newElim.name)) newEliminated.push(newElim.name);
+// ─── Phase: VOTING (Team A or B) ───
+function renderVotingPhase(state, team) {
+  const isTeamA = team === 'A';
+  const tallies    = isTeamA ? (state.talliesA || {}) : (state.talliesB || {});
+  const hasVoted   = isTeamA ? (state.hasVotedA || {}) : (state.hasVotedB || {});
+  const teamPlayers = (state.teams?.[team] || []).filter(n => !(state.eliminated || []).includes(n));
+  const votedCount  = Object.values(hasVoted).filter(Boolean).length;
+  const totalEligible = teamPlayers.length;
 
-  await db.collection('rooms').doc(roomId).update({
-    revealed: true,
-    eliminated: newEliminated
-  });
+  document.getElementById('phaseLabel').textContent = `Team ${team} Voting`;
+  document.getElementById('phaseDesc').textContent  = `${votedCount} of ${totalEligible} Team ${team} votes cast`;
+
+  // Phase actions
+  document.getElementById('phaseActions').innerHTML = `
+    <div class="timer-wrap">
+      <div class="timer-num" id="timerNum">40</div>
+      <div class="timer-label">seconds</div>
+    </div>
+    <button class="btn-blood" onclick="${isTeamA ? 'finishTeamAVoting(true)' : 'finishTeamBVoting(true)'}">End Voting Early</button>
+  `;
+
+  // Vote progress bar
+  const pct = totalEligible > 0 ? Math.round(votedCount / totalEligible * 100) : 0;
+  document.getElementById('voteProgressBar').style.display = 'flex';
+  document.getElementById('voteProgressFill').style.width = pct + '%';
+  document.getElementById('voteProgressCount').textContent = `${votedCount} / ${totalEligible}`;
+
+  // Timer
+  if (state.votingEndTime) {
+    const onExpire = isTeamA ? () => finishTeamAVoting() : () => finishTeamBVoting();
+    startTimerDisplay(state.votingEndTime, onExpire);
+  }
+
+  document.getElementById('mainContent').innerHTML = buildTeamsHtml(state, team, true, tallies, hasVoted);
+  document.getElementById('statusText').textContent = `Team ${team} voting…`;
 }
 
-async function nextRound() {
-  if (!lastState || !roomId) return;
-  const newVotes = {};
-  const stillActive = lastState.players.filter(p => !(lastState.eliminated||[]).includes(p.name));
-  stillActive.forEach(p => { newVotes[p.name] = 0; });
-  await db.collection('rooms').doc(roomId).update({
-    round: (lastState.round || 1) + 1,
-    votes: newVotes,
-    hasVoted: {},
-    revealed: false,
-    phase: 'voting'
-  });
+// ─── Phase: DONE (Team A or B results) ───
+function renderTeamDone(state, team) {
+  stopTimerDisplay();
+  document.getElementById('voteProgressBar').style.display = 'none';
+  const isTeamA  = team === 'A';
+  const cfg      = ROUND_CFG[state.round] || ROUND_CFG[1];
+  const tallies  = isTeamA ? (state.talliesA || {}) : (state.talliesB || {});
+  const teamPlayers = (state.teams?.[team] || []).filter(n => !(state.eliminated || []).includes(n));
+  const { toEliminate, hasTie } = calcElims(tallies, teamPlayers, cfg.epTeam);
+
+  document.getElementById('phaseLabel').textContent = `Team ${team} Results`;
+  document.getElementById('phaseDesc').textContent  = hasTie
+    ? `⚠ Tie detected — ${toEliminate.length} will be eliminated (expected ${cfg.epTeam})`
+    : `Top ${cfg.epTeam} from Team ${team} will be eliminated`;
+
+  const nextAction = isTeamA
+    ? `<button class="btn-sm" onclick="startTeamBVoting()">▶ Start Team B Voting</button>`
+    : `<button class="btn-blood" onclick="confirmEliminations()">⚔ Confirm Eliminations</button>`;
+
+  document.getElementById('phaseActions').innerHTML = nextAction;
+
+  let html = '';
+  if (hasTie) {
+    html += `<div class="tie-warning">⚠ Tie at the elimination boundary — ${toEliminate.length} players will be eliminated instead of ${cfg.epTeam}.</div>`;
+  }
+
+  html += buildTallySection(`Team ${team} — Vote Results`, tallies, teamPlayers, toEliminate);
+
+  // If team A done, also show team B panel (waiting)
+  if (isTeamA) {
+    html += `<div style="margin-top:1.5rem;">`;
+    html += buildTeamPanel(state, 'B', null, {}, {}, false, false);
+    html += `</div>`;
+  }
+
+  document.getElementById('mainContent').innerHTML = html;
+  document.getElementById('statusText').textContent = `Team ${team} results shown`;
 }
 
-async function resetGame() {
-  if (!confirm('Reset the whole game? This will clear all votes and start over.')) return;
-  if (!roomId) { location.reload(); return; }
-  const newVotes = {};
-  lastState.players.forEach(p => { newVotes[p.name] = 0; });
-  await db.collection('rooms').doc(roomId).update({
-    round: 1,
-    votes: newVotes,
-    hasVoted: {},
-    eliminated: [],
-    revealed: false
-  });
+// ─── Phase: FINAL PREP ───
+function renderFinalPrep(state) {
+  stopTimerDisplay();
+  document.getElementById('voteProgressBar').style.display = 'none';
+  document.getElementById('phaseLabel').textContent = 'Final Round';
+  document.getElementById('phaseDesc').textContent  = '6 players remain — all 50 players now vote for who they think is the traitor';
+  document.getElementById('phaseActions').innerHTML = `
+    <button class="btn-gold" onclick="startFinalVoting()" style="background:rgba(201,168,76,0.15);border:1px solid var(--gold);border-radius:8px;padding:7px 18px;font-family:Cinzel,serif;font-size:11px;letter-spacing:1.5px;color:var(--gold);cursor:pointer;">⚔ Start Final Voting</button>
+  `;
+
+  const activePlayers = (state.players || []).filter(p => !(state.eliminated || []).includes(p.name));
+  let html = `<div style="margin-bottom:1rem;">
+    <div class="section-label">The 6 Remaining Players</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:0.75rem;">`;
+  for (const p of activePlayers) {
+    html += `<div class="player-tile">
+      <div class="tile-photo-wrap">${avatarHtml(p, 52)}</div>
+      <div class="tile-name">${p.name}</div>
+    </div>`;
+  }
+  html += `</div></div>`;
+  document.getElementById('mainContent').innerHTML = html;
+  document.getElementById('statusText').textContent = 'Final round ready';
 }
 
+// ─── Phase: FINAL VOTING ───
+function renderFinalVotingPhase(state) {
+  const tallies    = state.talliesFinal || {};
+  const hasVoted   = state.hasVotedFinal || {};
+  const allPlayers = state.players || [];
+  const activePlayers = allPlayers.filter(p => !(state.eliminated || []).includes(p.name));
+  const votedCount    = Object.values(hasVoted).filter(Boolean).length;
+  const totalEligible = allPlayers.length; // ALL players vote in final (including eliminated)
+
+  document.getElementById('phaseLabel').textContent = 'Final Voting';
+  document.getElementById('phaseDesc').textContent  = `${votedCount} of ${totalEligible} votes cast — all players vote (including eliminated)`;
+  document.getElementById('phaseActions').innerHTML = `
+    <div class="timer-wrap">
+      <div class="timer-num" id="timerNum">40</div>
+      <div class="timer-label">seconds</div>
+    </div>
+    <button class="btn-blood" onclick="finishFinalVoting()">End Voting Early</button>
+  `;
+
+  const pct = totalEligible > 0 ? Math.round(votedCount / totalEligible * 100) : 0;
+  document.getElementById('voteProgressBar').style.display = 'flex';
+  document.getElementById('voteProgressFill').style.width  = pct + '%';
+  document.getElementById('voteProgressCount').textContent = `${votedCount} / ${totalEligible}`;
+
+  if (state.votingEndTime) {
+    startTimerDisplay(state.votingEndTime, () => finishFinalVoting());
+  }
+
+  let html = `<div class="section-label" style="margin-bottom:0.75rem;">Live Tallies — Final Round</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;">`;
+  const maxVotes = Math.max(1, ...activePlayers.map(p => tallies[p.name] || 0));
+  for (const p of activePlayers) {
+    const v = tallies[p.name] || 0;
+    html += `<div class="player-tile ${v === maxVotes && v > 0 ? 'eliminated' : ''}">
+      <div class="tile-photo-wrap">${avatarHtml(p, 52)}</div>
+      <div class="tile-name">${p.name}</div>
+      <div class="tile-votes ${v === maxVotes && v > 0 ? 'top-vote' : ''}">${v > 0 ? v : ''}</div>
+      <div class="tile-bar"><div class="tile-bar-fill" style="width:${Math.round(v/maxVotes*100)}%"></div></div>
+    </div>`;
+  }
+  html += `</div>`;
+  document.getElementById('mainContent').innerHTML = html;
+  document.getElementById('statusText').textContent = 'Final voting in progress…';
+}
+
+// ─── Phase: FINAL DONE ───
+function renderFinalDone(state) {
+  stopTimerDisplay();
+  document.getElementById('voteProgressBar').style.display = 'none';
+  const activePlayers  = (state.players || []).filter(p => !(state.eliminated || []).includes(p.name)).map(p => p.name);
+  const tallies        = state.talliesFinal || {};
+  const { toEliminate, hasTie } = calcElims(tallies, activePlayers, 3);
+
+  document.getElementById('phaseLabel').textContent = 'Final Results';
+  document.getElementById('phaseDesc').textContent  = hasTie
+    ? '⚠ Tie detected — use Re-vote to break the tie'
+    : 'Three players eliminated — three survivors revealed';
+
+  let actions = '';
+  if (hasTie) {
+    actions = `<button class="btn-sm" onclick="triggerRevote()">🔄 Re-vote (Tie)</button>`;
+  } else {
+    actions = `<button class="btn-green" onclick="confirmWinners()" style="background:rgba(39,174,96,0.15);border:1px solid rgba(39,174,96,0.4);border-radius:8px;padding:7px 18px;font-family:Cinzel,serif;font-size:11px;letter-spacing:1.5px;color:#2ecc71;cursor:pointer;">👑 Reveal Winners</button>`;
+  }
+  document.getElementById('phaseActions').innerHTML = actions;
+
+  let html = '';
+  if (hasTie) {
+    html += `<div class="tie-warning">⚠ There is a tie at position 3. Use Re-vote to ask all players to vote again for the same 6 players.</div>`;
+  }
+  html += buildTallySection('Final Round — Vote Results', tallies, activePlayers, toEliminate);
+  document.getElementById('mainContent').innerHTML = html;
+  document.getElementById('statusText').textContent = 'Final results — awaiting confirmation';
+}
+
+// ─── Phase: WINNERS ───
+function renderWinners(state) {
+  stopTimerDisplay();
+  document.getElementById('voteProgressBar').style.display = 'none';
+  document.getElementById('phaseLabel').textContent = '🏆 The Traitors — Winners';
+  document.getElementById('phaseDesc').textContent  = 'The three survivors who were not eliminated';
+  document.getElementById('phaseActions').innerHTML = `<button class="btn-blood" onclick="confirmReset()">Reset Game</button>`;
+
+  const activePlayers = (state.players || []).filter(p => !(state.eliminated || []).includes(p.name));
+  let html = `<div class="winners-section">
+    <div class="winners-title">✦ The Faithfuls ✦</div>
+    <div class="winners-subtitle">These three survived the castle</div>
+    <div class="winners-row">`;
+  for (const p of activePlayers) {
+    html += `<div class="winner-card">
+      <div class="winner-crown">👑</div>
+      <div class="winner-avatar">${p.photo
+        ? `<img src="images/${p.photo}" alt="${p.name}" onerror="this.outerHTML='${initials(p.name)}'">` 
+        : initials(p.name)}</div>
+      <div class="winner-name">${p.name}</div>
+      <div class="winner-sub">Survived the castle</div>
+    </div>`;
+  }
+  html += `</div></div>`;
+  document.getElementById('mainContent').innerHTML = html;
+  document.getElementById('statusText').textContent = '🏆 Game complete — winners revealed';
+}
+
+// ═══════════════════════════════════════════════════
+//  HTML BUILDERS
+// ═══════════════════════════════════════════════════
+function buildTeamsHtml(state, votingTeam, showVotes, tallies, hasVoted) {
+  tallies  = tallies  || {};
+  hasVoted = hasVoted || {};
+  return `<div class="teams-row">
+    ${buildTeamPanel(state, 'A', votingTeam, tallies, hasVoted, showVotes)}
+    ${buildTeamPanel(state, 'B', votingTeam, tallies, hasVoted, showVotes)}
+  </div>`;
+}
+
+function buildTeamPanel(state, team, votingTeam, tallies, hasVoted, showVotes) {
+  const teamTallies  = team === 'A' ? (tallies || {}) : (tallies || {});
+  const teamHasVoted = hasVoted || {};
+  const players      = state.teams?.[team] || [];
+  const eliminated   = state.eliminated || [];
+  const claimed      = state.claimedBy  || {};
+  const active       = players.filter(n => !eliminated.includes(n));
+  const isVoting     = votingTeam === team;
+  const isWaiting    = votingTeam && votingTeam !== team;
+  const maxVotes     = Math.max(1, ...Object.values(teamTallies).map(Number));
+
+  const badge = isVoting  ? `<div class="team-voting-badge active">Voting</div>`
+              : isWaiting ? `<div class="team-voting-badge waiting">Waiting</div>`
+              : '';
+
+  let html = `<div class="team-panel team-${team.toLowerCase()} ${isVoting ? 'voting-active' : ''}">
+    <div class="team-header">
+      <div>
+        <div class="team-title">Team ${team}</div>
+        <div class="team-meta">${active.length} active · ${players.length - active.length} eliminated</div>
+      </div>
+      ${badge}
+    </div>
+    <div class="team-players">`;
+
+  for (const name of players) {
+    const isElim   = eliminated.includes(name);
+    const voted    = !!teamHasVoted[name];
+    const isClaimed = !!claimed[name];
+    const votes    = teamTallies[name] || 0;
+    const pct      = showVotes && votes > 0 ? Math.round(votes / maxVotes * 100) : 0;
+    const p        = (state.players || []).find(pl => pl.name === name) || { name };
+
+    html += `<div class="player-tile ${isElim ? 'eliminated' : ''} ${voted && !isElim ? 'has-voted' : ''} ${isClaimed && !isElim ? 'claimed' : ''}">
+      <div class="tile-photo-wrap">
+        ${avatarHtml(p, 52)}
+        <div class="elim-x"><svg viewBox="0 0 24 24" fill="none" stroke="#e88080" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="4" x2="20" y2="20"/><line x1="20" y1="4" x2="4" y2="20"/></svg></div>
+        <div class="voted-tick"><svg viewBox="0 0 12 12" fill="none" stroke="#1a1410" stroke-width="2" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></div>
+        <div class="claimed-dot"></div>
+      </div>
+      <div class="tile-name">${name}</div>
+      ${showVotes ? `<div class="tile-votes ${pct === 100 && votes > 0 ? 'top-vote' : ''}">${votes > 0 ? votes : ''}</div>
+        <div class="tile-bar"><div class="tile-bar-fill" style="width:${pct}%"></div></div>` : ''}
+    </div>`;
+  }
+
+  html += `</div></div>`;
+  return html;
+}
+
+function buildTallySection(title, tallies, playerNames, toEliminate) {
+  const sorted = [...playerNames]
+    .map(name => ({ name, votes: tallies[name] || 0 }))
+    .sort((a, b) => b.votes - a.votes);
+  const maxVotes = Math.max(1, sorted[0]?.votes || 1);
+
+  let html = `<div class="tally-section">
+    <div class="tally-title">
+      <span>${title}</span>
+      <span style="color:rgba(245,236,215,0.3);font-weight:400;font-size:10px;">${sorted.reduce((s,p)=>s+p.votes,0)} votes cast</span>
+    </div>`;
+
+  for (const p of sorted) {
+    const willElim = toEliminate.includes(p.name);
+    const pct      = Math.round(p.votes / maxVotes * 100);
+    const player   = (lastState?.players || []).find(pl => pl.name === p.name) || { name: p.name };
+    const ava      = player.photo
+      ? `<img src="images/${player.photo}" class="tally-avatar-sm" alt="${p.name}" onerror="this.outerHTML='<div class=\\'tally-avatar-sm\\'>${initials(p.name)}</div>'">`
+      : `<div class="tally-avatar-sm">${initials(p.name)}</div>`;
+
+    html += `<div class="tally-row ${willElim ? 'will-elim' : ''}">
+      ${ava}
+      <div class="tally-name">${p.name}</div>
+      <div class="tally-bar-wrap"><div class="tally-bar-fill" style="width:${pct}%"></div></div>
+      <div class="tally-count">${p.votes}</div>
+      ${willElim ? '<div class="elim-pill">ELIMINATED</div>' : ''}
+    </div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+// ═══════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════
+function initials(name) {
+  return (name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function avatarHtml(p, size) {
+  if (p && p.photo) {
+    return `<img src="images/${p.photo}" class="tile-photo" style="width:${size}px;height:${size}px;" alt="${p.name}" onerror="this.outerHTML='<div class=\\'tile-initials\\' style=\\'width:${size}px;height:${size}px;font-size:${Math.round(size*0.35)}px;\\'>${initials(p.name)}</div>'">`;
+  }
+  return `<div class="tile-initials" style="width:${size}px;height:${size}px;font-size:${Math.round(size*0.35)}px;">${initials(p?.name || '?')}</div>`;
+}
+
+// ═══════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════
 loadSavedConfig();
 </script>
 </body>
