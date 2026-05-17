@@ -410,6 +410,10 @@ input:focus { border-color: rgba(201,168,76,0.55); }
       </div>
       <div class="waiting-title" id="waitingTitle">Waiting…</div>
       <div class="waiting-msg" id="waitingMsg">Stand by for the host</div>
+      <button id="waitingBackBtn" onclick="unclaimPlayer()"
+        style="display:none;margin-top:1.75rem;background:rgba(245,236,215,0.05);border:1px solid rgba(245,236,215,0.15);border-radius:10px;padding:12px 24px;font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:rgba(245,236,215,0.45);cursor:pointer;">
+        ← Change Identity
+      </button>
     </div>
   </div>
 
@@ -599,6 +603,12 @@ function listenRoom() {
 }
 
 function routePlayerView(state) {
+  // If reset cleared claimedBy, drop our stale local identity and go back to picker
+  if (currentPlayer && !(state.claimedBy || {})[currentPlayer]) {
+    currentPlayer = null;
+    sessionStorage.removeItem(SS_SESSION_KEY);
+  }
+
   const phase    = state.phase || 'lobby';
   const elim     = state.eliminated || [];
   const iAmElim  = currentPlayer && elim.includes(currentPlayer);
@@ -622,7 +632,8 @@ function routePlayerView(state) {
       phase === 'final_prep' ? 'Final Round' : 'Lobby',
       phase === 'final_prep'
         ? 'The final round is about to begin…\nAll players will vote — including eliminated players.'
-        : 'Waiting for the host to start the next round…'
+        : 'Waiting for the host to start the next round…',
+      phase === 'lobby' // back button only available in lobby, not once final has begun
     ); return;
   }
 
@@ -728,10 +739,31 @@ async function claimPlayer(name) {
   }
 }
 
+async function unclaimPlayer() {
+  if (!currentPlayer || !roomId) return;
+  try {
+    await db.collection('rooms').doc(roomId).update({
+      [`claimedBy.${currentPlayer}`]: firebase.firestore.FieldValue.delete()
+    });
+    currentPlayer = null;
+    sessionStorage.removeItem(SS_SESSION_KEY);
+    showPickerScreen(lastState);
+  } catch(e) {
+    alert('Could not change identity: ' + e.message);
+  }
+}
+
 // ═══════════════════════════════════════════════════
 //  VOTING SCREEN
 // ═══════════════════════════════════════════════════
 function showVotingScreen(state, teamContext) {
+  const alreadyShowing = document.getElementById('votingScreen').style.display === 'block';
+  if (alreadyShowing) {
+    // Another player just voted — only refresh the timer, preserve selections
+    startPlayerTimer(state.votingEndTime);
+    return;
+  }
+
   show('votingScreen');
   const isFinal = teamContext === 'final';
   votesAllowed  = isFinal ? 1 : 2;
@@ -859,11 +891,12 @@ async function castVote() {
 // ═══════════════════════════════════════════════════
 //  WAITING SCREEN
 // ═══════════════════════════════════════════════════
-function showWaiting(title, msg) {
+function showWaiting(title, msg, allowBack = false) {
   stopPlayerTimer();
   show('waitingScreen');
   document.getElementById('waitingTitle').textContent = title;
   document.getElementById('waitingMsg').innerHTML     = (msg || '').replace(/\n/g, '<br>');
+  document.getElementById('waitingBackBtn').style.display = (allowBack && currentPlayer) ? 'block' : 'none';
 }
 
 // ═══════════════════════════════════════════════════
@@ -943,7 +976,7 @@ function showWinnersScreen(state) {
   stopPlayerTimer();
   show('winnersScreen');
   const elim     = state.eliminated || [];
-  const survivors = (state.players || []).filter(p => !elim.includes(p));
+  const survivors = (state.players || []).filter(p => !elim.includes(p.name));
   document.getElementById('winnersListEl').innerHTML = survivors.map(p => `
     <div class="winner-card-sm">
       <div class="winner-avatar-sm">
@@ -987,10 +1020,12 @@ function stopPlayerTimer() {
 //  HELPERS
 // ═══════════════════════════════════════════════════
 function show(screenId) {
+  const currentVisible = SCREENS.find(id => document.getElementById(id).style.display === 'block');
+  const switching = currentVisible !== screenId;
   SCREENS.forEach(id => {
     document.getElementById(id).style.display = (id === screenId) ? 'block' : 'none';
   });
-  hasSubmittedVote = false;
+  if (switching) hasSubmittedVote = false;
 }
 
 function getMyTeam(state) {

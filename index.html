@@ -518,7 +518,7 @@ input::placeholder { color: rgba(245,236,215,0.2); }
 
   <!-- Eliminated strip -->
   <div class="eliminated-section" id="eliminatedSection" style="display:none">
-    <div class="section-label">Eliminated Players</div>
+    <div class="section-label">Eliminated This Round</div>
     <div class="eliminated-strip" id="eliminatedStrip"></div>
   </div>
 
@@ -597,6 +597,7 @@ async function openHostRoom(apiKey, projectId, appId) {
     votingEndTime: null,
     teams: { A: [], B: [] },
     eliminated: [],
+    lastRoundEliminated: [],
     talliesA: {}, hasVotedA: {},
     talliesB: {}, hasVotedB: {},
     talliesFinal: {}, hasVotedFinal: {},
@@ -696,12 +697,14 @@ async function confirmEliminations() {
   const activeB = (state.teams.B || []).filter(n => !(state.eliminated || []).includes(n));
   const elimA  = calcElims(state.talliesA || {}, activeA, cfg.epTeam);
   const elimB  = calcElims(state.talliesB || {}, activeB, cfg.epTeam);
-  const newElim = [...(state.eliminated || []), ...elimA.toEliminate, ...elimB.toEliminate];
+  const thisRound = [...elimA.toEliminate, ...elimB.toEliminate];
+  const newElim   = [...(state.eliminated || []), ...thisRound];
 
   if (round < 3) {
     // Advance to next regular round
     await db.collection('rooms').doc(roomId).update({
       eliminated: newElim,
+      lastRoundEliminated: thisRound,
       round: round + 1,
       phase: 'lobby',
       talliesA: {}, hasVotedA: {},
@@ -711,6 +714,7 @@ async function confirmEliminations() {
     // After round 3 → move to final prep
     await db.collection('rooms').doc(roomId).update({
       eliminated: newElim,
+      lastRoundEliminated: thisRound,
       round: 'final',
       phase: 'final_prep',
       talliesA: {}, hasVotedA: {},
@@ -745,7 +749,7 @@ async function confirmWinners() {
     .map(p => p.name);
   const { toEliminate } = calcElims(state.talliesFinal || {}, activePlayers, 3);
   const newElim = [...(state.eliminated || []), ...toEliminate];
-  await db.collection('rooms').doc(roomId).update({ eliminated: newElim, phase: 'winners' });
+  await db.collection('rooms').doc(roomId).update({ eliminated: newElim, lastRoundEliminated: toEliminate, phase: 'winners' });
 }
 
 async function triggerRevote() {
@@ -762,7 +766,7 @@ async function confirmReset() {
   if (!roomId) { location.reload(); return; }
   await db.collection('rooms').doc(roomId).update({
     round: 1, phase: 'lobby', votingEndTime: null,
-    teams: { A: [], B: [] }, eliminated: [],
+    teams: { A: [], B: [] }, eliminated: [], lastRoundEliminated: [],
     talliesA: {}, hasVotedA: {},
     talliesB: {}, hasVotedB: {},
     talliesFinal: {}, hasVotedFinal: {},
@@ -778,14 +782,17 @@ function calcElims(tallies, players, n) {
     .map(name => ({ name, votes: tallies[name] || 0 }))
     .sort((a, b) => b.votes - a.votes);
   if (sorted.length === 0) return { toEliminate: [], hasTie: false };
-  if (sorted.length <= n)  return { toEliminate: sorted.map(p => p.name), hasTie: false };
-  const cutoff = sorted[n - 1].votes;
-  const next   = sorted[n]?.votes ?? -1;
+  // Never eliminate the entire pool — always leave at least 1 player standing
+  const maxElim = Math.min(n, sorted.length - 1);
+  if (maxElim <= 0) return { toEliminate: [], hasTie: false };
+  const cutoff = sorted[maxElim - 1].votes;
+  const next   = sorted[maxElim].votes;
   const hasTie = cutoff === next;
-  const toEliminate = hasTie
+  const raw = hasTie
     ? sorted.filter(p => p.votes >= cutoff).map(p => p.name)
-    : sorted.slice(0, n).map(p => p.name);
-  return { toEliminate, hasTie };
+    : sorted.slice(0, maxElim).map(p => p.name);
+  // Safety cap: tie expansion can never eliminate everyone either
+  return { toEliminate: raw.slice(0, sorted.length - 1), hasTie };
 }
 
 // ═══════════════════════════════════════════════════
@@ -797,7 +804,10 @@ function startTimerDisplay(endTime, onExpire) {
     const secs = Math.ceil((endTime - Date.now()) / 1000);
     const clamped = Math.max(0, secs);
     updateTimerEl(clamped);
-    if (secs <= 0 && onExpire) { onExpire(); }
+    if (secs <= 0) {
+      stopTimerDisplay();
+      if (onExpire) onExpire();
+    }
   }, 200);
 }
 function stopTimerDisplay() {
@@ -835,8 +845,8 @@ function renderHostView(state) {
   const cfg = ROUND_CFG[state.round] || ROUND_CFG[1];
   document.getElementById('roundPill').textContent = cfg.label;
 
-  // Eliminated strip
-  const elims = state.eliminated || [];
+  // Eliminated strip — shows only the most recently confirmed round's eliminations
+  const elims = state.lastRoundEliminated || [];
   if (elims.length > 0) {
     document.getElementById('eliminatedSection').style.display = 'block';
     document.getElementById('eliminatedStrip').innerHTML =
@@ -914,7 +924,7 @@ function renderVotingPhase(state, team) {
       <div class="timer-num" id="timerNum">40</div>
       <div class="timer-label">seconds</div>
     </div>
-    <button class="btn-blood" onclick="${isTeamA ? 'finishTeamAVoting(true)' : 'finishTeamBVoting(true)'}">End Voting Early</button>
+    <button class="btn-blood" id="endVotingBtn" onclick="${isTeamA ? 'finishTeamAVoting(true)' : 'finishTeamBVoting(true)'}">End Voting Early</button>
   `;
 
   // Vote progress bar
@@ -923,10 +933,12 @@ function renderVotingPhase(state, team) {
   document.getElementById('voteProgressFill').style.width = pct + '%';
   document.getElementById('voteProgressCount').textContent = `${votedCount} / ${totalEligible}`;
 
-  // Timer
+  // Timer — relabel button when time is up so host knows to proceed
   if (state.votingEndTime) {
-    const onExpire = isTeamA ? () => finishTeamAVoting() : () => finishTeamBVoting();
-    startTimerDisplay(state.votingEndTime, onExpire);
+    startTimerDisplay(state.votingEndTime, () => {
+      const btn = document.getElementById('endVotingBtn');
+      if (btn) btn.textContent = 'View Results';
+    });
   }
 
   document.getElementById('mainContent').innerHTML = buildTeamsHtml(state, team, true, tallies, hasVoted);
@@ -1013,7 +1025,7 @@ function renderFinalVotingPhase(state) {
       <div class="timer-num" id="timerNum">40</div>
       <div class="timer-label">seconds</div>
     </div>
-    <button class="btn-blood" onclick="finishFinalVoting()">End Voting Early</button>
+    <button class="btn-blood" id="endVotingBtn" onclick="finishFinalVoting()">End Voting Early</button>
   `;
 
   const pct = totalEligible > 0 ? Math.round(votedCount / totalEligible * 100) : 0;
@@ -1022,7 +1034,10 @@ function renderFinalVotingPhase(state) {
   document.getElementById('voteProgressCount').textContent = `${votedCount} / ${totalEligible}`;
 
   if (state.votingEndTime) {
-    startTimerDisplay(state.votingEndTime, () => finishFinalVoting());
+    startTimerDisplay(state.votingEndTime, () => {
+      const btn = document.getElementById('endVotingBtn');
+      if (btn) btn.textContent = 'View Results';
+    });
   }
 
   let html = `<div class="section-label" style="margin-bottom:0.75rem;">Live Tallies — Final Round</div>
