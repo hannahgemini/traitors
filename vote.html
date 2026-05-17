@@ -728,6 +728,11 @@ async function claimPlayer(name) {
       tx.update(roomRef, { [`claimedBy.${name}`]: myDeviceId });
     });
     currentPlayer = name;
+    // Patch lastState optimistically so routePlayerView doesn't see a stale claimedBy
+    // and immediately clear the identity we just set (Firestore listener may not have fired yet)
+    if (lastState) {
+      lastState = { ...lastState, claimedBy: { ...(lastState.claimedBy || {}), [name]: myDeviceId } };
+    }
     sessionStorage.setItem(SS_SESSION_KEY, JSON.stringify({ roomId, player: name }));
     hasSubmittedVote = false;
     routePlayerView(lastState);
