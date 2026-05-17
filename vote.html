@@ -402,6 +402,15 @@ input:focus { border-color: rgba(201,168,76,0.55); }
       <div class="app-header-title">THE TRAITORS</div>
     </div>
     <div style="padding:2rem 1.5rem;text-align:center;">
+
+      <!-- Identity card -->
+      <div id="waitingIdentity" style="display:none;margin-bottom:2rem;">
+        <div style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;color:rgba(201,168,76,0.45);margin-bottom:0.875rem;">YOUR IDENTITY</div>
+        <div id="waitingAvatar" style="width:80px;height:80px;border-radius:50%;border:2px solid rgba(201,168,76,0.45);box-shadow:0 0 24px rgba(201,168,76,0.15);margin:0 auto 0.875rem;overflow:hidden;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:1.6rem;font-weight:700;color:var(--gold);background:rgba(201,168,76,0.1);"></div>
+        <div id="waitingIdentityName" style="font-family:'Cinzel',serif;font-size:16px;color:var(--parchment);letter-spacing:1px;font-weight:600;"></div>
+        <div id="waitingTeamLabel" style="display:none;font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;margin-top:6px;padding:2px 12px;border-radius:10px;display:inline-block;"></div>
+      </div>
+
       <div class="waiting-icon">
         <svg viewBox="0 0 30 30" fill="none" stroke="#c9a84c" stroke-width="1.5" stroke-linecap="round">
           <circle cx="15" cy="15" r="12"/>
@@ -628,12 +637,17 @@ function routePlayerView(state) {
 
   // Phase routing
   if (phase === 'lobby' || phase === 'final_prep') {
+    // Eliminated players see a distinct message in the lobby (but still vote in the final)
+    if (iAmElim && phase === 'lobby') {
+      showWaiting('Eliminated', 'You have been eliminated from the castle.\nWatch the host screen for the remaining rounds.');
+      return;
+    }
     showWaiting(
       phase === 'final_prep' ? 'Final Round' : 'Lobby',
       phase === 'final_prep'
         ? 'The final round is about to begin…\nAll players will vote — including eliminated players.'
         : 'Waiting for the host to start the next round…',
-      phase === 'lobby' // back button only available in lobby, not once final has begun
+      phase === 'lobby' && !iAmElim // back button only for non-eliminated players in lobby
     ); return;
   }
 
@@ -902,6 +916,38 @@ function showWaiting(title, msg, allowBack = false) {
   document.getElementById('waitingTitle').textContent = title;
   document.getElementById('waitingMsg').innerHTML     = (msg || '').replace(/\n/g, '<br>');
   document.getElementById('waitingBackBtn').style.display = (allowBack && currentPlayer) ? 'block' : 'none';
+
+  // Identity card
+  const identityEl = document.getElementById('waitingIdentity');
+  if (currentPlayer && lastState) {
+    const playerData = (lastState.players || []).find(p => p.name === currentPlayer);
+    const avatarEl   = document.getElementById('waitingAvatar');
+    if (playerData?.photo) {
+      avatarEl.innerHTML = `<img src="images/${playerData.photo}" alt="${currentPlayer}"
+        style="width:100%;height:100%;object-fit:cover;"
+        onerror="this.style.display='none';this.parentElement.textContent='${initials(currentPlayer)}'">`;
+    } else {
+      avatarEl.textContent = initials(currentPlayer);
+    }
+    document.getElementById('waitingIdentityName').textContent = currentPlayer;
+
+    // Team badge — shown once teams are assigned
+    const teamLabelEl = document.getElementById('waitingTeamLabel');
+    const myTeam = getMyTeam(lastState);
+    if (myTeam) {
+      teamLabelEl.textContent = `Team ${myTeam}`;
+      teamLabelEl.style.display = 'inline-block';
+      teamLabelEl.style.cssText += myTeam === 'A'
+        ? ';background:rgba(42,114,168,0.15);border:1px solid rgba(42,114,168,0.35);color:#74b9ff;'
+        : ';background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);color:var(--gold);';
+    } else {
+      teamLabelEl.style.display = 'none';
+    }
+
+    identityEl.style.display = 'block';
+  } else {
+    identityEl.style.display = 'none';
+  }
 }
 
 // ═══════════════════════════════════════════════════

@@ -752,14 +752,6 @@ async function confirmWinners() {
   await db.collection('rooms').doc(roomId).update({ eliminated: newElim, lastRoundEliminated: toEliminate, phase: 'winners' });
 }
 
-async function triggerRevote() {
-  const endTime = Date.now() + VOTE_SECS * 1000;
-  await db.collection('rooms').doc(roomId).update({
-    phase: 'final_voting',
-    votingEndTime: endTime,
-    talliesFinal: {}, hasVotedFinal: {}
-  });
-}
 
 async function confirmReset() {
   if (!confirm('Reset the entire game? This clears all votes and progress.')) return;
@@ -781,18 +773,41 @@ function calcElims(tallies, players, n) {
   const sorted = [...players]
     .map(name => ({ name, votes: tallies[name] || 0 }))
     .sort((a, b) => b.votes - a.votes);
-  if (sorted.length === 0) return { toEliminate: [], hasTie: false };
-  // Never eliminate the entire pool — always leave at least 1 player standing
+  if (sorted.length === 0) return { toEliminate: [], hasTie: false, tiebreakerUsed: false };
+  // Hard limit: never eliminate more than n, and always leave at least 1
   const maxElim = Math.min(n, sorted.length - 1);
-  if (maxElim <= 0) return { toEliminate: [], hasTie: false };
+  if (maxElim <= 0) return { toEliminate: [], hasTie: false, tiebreakerUsed: false };
+
   const cutoff = sorted[maxElim - 1].votes;
   const next   = sorted[maxElim].votes;
-  const hasTie = cutoff === next;
-  const raw = hasTie
-    ? sorted.filter(p => p.votes >= cutoff).map(p => p.name)
-    : sorted.slice(0, maxElim).map(p => p.name);
-  // Safety cap: tie expansion can never eliminate everyone either
-  return { toEliminate: raw.slice(0, sorted.length - 1), hasTie };
+
+  if (cutoff !== next) {
+    // Clean cut at the boundary — no tie
+    return { toEliminate: sorted.slice(0, maxElim).map(p => p.name), hasTie: false, tiebreakerUsed: false };
+  }
+
+  // Tie at the boundary — enforce hard limit using deterministic tiebreaker
+  const definite = sorted.filter(p => p.votes >  cutoff).map(p => p.name);
+  const tied     = sorted.filter(p => p.votes === cutoff).map(p => p.name);
+  const needed   = maxElim - definite.length;
+  const picked   = breakTiebreaker(tied, needed);
+  return { toEliminate: [...definite, ...picked], hasTie: false, tiebreakerUsed: true };
+}
+
+// Deterministic tiebreaker: picks `count` names from `names` using a hash of
+// each name + the current roomId. Same result on every client for the same room.
+function breakTiebreaker(names, count) {
+  if (count <= 0) return [];
+  if (count >= names.length) return [...names];
+  const scored = names.map(name => {
+    let h = 0;
+    for (const c of name + (roomId || '')) {
+      h = (Math.imul(31, h) + c.charCodeAt(0)) | 0;
+    }
+    return { name, h };
+  });
+  scored.sort((a, b) => a.h - b.h);
+  return scored.slice(0, count).map(s => s.name);
 }
 
 // ═══════════════════════════════════════════════════
@@ -953,12 +968,12 @@ function renderTeamDone(state, team) {
   const cfg      = ROUND_CFG[state.round] || ROUND_CFG[1];
   const tallies  = isTeamA ? (state.talliesA || {}) : (state.talliesB || {});
   const teamPlayers = (state.teams?.[team] || []).filter(n => !(state.eliminated || []).includes(n));
-  const { toEliminate, hasTie } = calcElims(tallies, teamPlayers, cfg.epTeam);
+  const { toEliminate, tiebreakerUsed } = calcElims(tallies, teamPlayers, cfg.epTeam);
 
   document.getElementById('phaseLabel').textContent = `Team ${team} Results`;
-  document.getElementById('phaseDesc').textContent  = hasTie
-    ? `⚠ Tie detected — ${toEliminate.length} will be eliminated (expected ${cfg.epTeam})`
-    : `Top ${cfg.epTeam} from Team ${team} will be eliminated`;
+  document.getElementById('phaseDesc').textContent  = tiebreakerUsed
+    ? `Tie resolved — exactly ${toEliminate.length} eliminated from Team ${team}`
+    : `Top ${toEliminate.length} from Team ${team} will be eliminated`;
 
   const nextAction = isTeamA
     ? `<button class="btn-sm" onclick="startTeamBVoting()">▶ Start Team B Voting</button>`
@@ -967,8 +982,8 @@ function renderTeamDone(state, team) {
   document.getElementById('phaseActions').innerHTML = nextAction;
 
   let html = '';
-  if (hasTie) {
-    html += `<div class="tie-warning">⚠ Tie at the elimination boundary — ${toEliminate.length} players will be eliminated instead of ${cfg.epTeam}.</div>`;
+  if (tiebreakerUsed) {
+    html += `<div class="tie-warning" style="background:rgba(201,168,76,0.07);border-color:rgba(201,168,76,0.3);color:var(--gold-light);">🎲 Vote tie at the boundary — tiebreaker applied. Exactly ${cfg.epTeam} eliminated.</div>`;
   }
 
   html += buildTallySection(`Team ${team} — Vote Results`, tallies, teamPlayers, toEliminate);
@@ -1063,24 +1078,20 @@ function renderFinalDone(state) {
   document.getElementById('voteProgressBar').style.display = 'none';
   const activePlayers  = (state.players || []).filter(p => !(state.eliminated || []).includes(p.name)).map(p => p.name);
   const tallies        = state.talliesFinal || {};
-  const { toEliminate, hasTie } = calcElims(tallies, activePlayers, 3);
+  const { toEliminate, tiebreakerUsed } = calcElims(tallies, activePlayers, 3);
 
   document.getElementById('phaseLabel').textContent = 'Final Results';
-  document.getElementById('phaseDesc').textContent  = hasTie
-    ? '⚠ Tie detected — use Re-vote to break the tie'
+  document.getElementById('phaseDesc').textContent  = tiebreakerUsed
+    ? 'Tie resolved by tiebreaker — three players eliminated'
     : 'Three players eliminated — three survivors revealed';
 
-  let actions = '';
-  if (hasTie) {
-    actions = `<button class="btn-sm" onclick="triggerRevote()">🔄 Re-vote (Tie)</button>`;
-  } else {
-    actions = `<button class="btn-green" onclick="confirmWinners()" style="background:rgba(39,174,96,0.15);border:1px solid rgba(39,174,96,0.4);border-radius:8px;padding:7px 18px;font-family:Cinzel,serif;font-size:11px;letter-spacing:1.5px;color:#2ecc71;cursor:pointer;">👑 Reveal Winners</button>`;
-  }
-  document.getElementById('phaseActions').innerHTML = actions;
+  document.getElementById('phaseActions').innerHTML = `
+    <button class="btn-green" onclick="confirmWinners()" style="background:rgba(39,174,96,0.15);border:1px solid rgba(39,174,96,0.4);border-radius:8px;padding:7px 18px;font-family:Cinzel,serif;font-size:11px;letter-spacing:1.5px;color:#2ecc71;cursor:pointer;">👑 Reveal Winners</button>
+  `;
 
   let html = '';
-  if (hasTie) {
-    html += `<div class="tie-warning">⚠ There is a tie at position 3. Use Re-vote to ask all players to vote again for the same 6 players.</div>`;
+  if (tiebreakerUsed) {
+    html += `<div class="tie-warning" style="background:rgba(201,168,76,0.07);border-color:rgba(201,168,76,0.3);color:var(--gold-light);">🎲 Vote tie in the final — tiebreaker applied. Results are final.</div>`;
   }
   html += buildTallySection('Final Round — Vote Results', tallies, activePlayers, toEliminate);
   document.getElementById('mainContent').innerHTML = html;
