@@ -552,7 +552,7 @@ input::placeholder { color: rgba(245,236,215,0.2); }
 //  CONFIG & CONSTANTS
 // ═══════════════════════════════════════════════════
 const LS_KEY = 'traitors_fb_config';
-const VOTE_SECS = 40;
+const VOTE_SECS = 42;
 const ROUND_CFG = {
   1:     { label: 'Round 1',     epTeam: 2, votes: 2, next: 2 },
   2:     { label: 'Round 2',     epTeam: 2, votes: 2, next: 3 },
@@ -561,10 +561,23 @@ const ROUND_CFG = {
 };
 const TEAMS = ['A','B','C','D','E','F'];
 
+// ── Audio file paths (relative to index.html) ───────────────
+// Drop your audio files into an audio/ folder next to index.html
+// and rename them to match these values (or change these values).
+const AUDIO_VOTING  = 'audio/voting.mp3';   // plays during all voting rounds (resumes across rounds)
+const AUDIO_WINNERS = 'audio/winners.mp3';  // plays when the 3 winners are revealed
+
 // ═══════════════════════════════════════════════════
 //  GLOBALS
 // ═══════════════════════════════════════════════════
 let db, roomId, unsubRoom, lastState, timerInterval, advancing = false;
+
+// Audio objects — created once, position persists across rounds
+const votingAudio  = new Audio(AUDIO_VOTING);
+const winnersAudio = new Audio(AUDIO_WINNERS);
+votingAudio.volume  = 0.75;
+winnersAudio.volume = 0.8;
+let votingAudioPos = 0; // seconds — resumes from here at the start of each voting round
 
 // ═══════════════════════════════════════════════════
 //  SETUP
@@ -613,12 +626,15 @@ async function openHostRoom(apiKey, projectId, appId) {
   // Build teams from the `team` property in players.js
   const teams = { A: [], B: [], C: [], D: [], E: [], F: [] };
   for (const p of PLAYERS) { if (p.team && teams[p.team]) teams[p.team].push(p.name); }
+  const traitors = PLAYERS.filter(p => p.traitor).map(p => p.name);
 
   const initialState = {
     round: 1,
     phase: 'lobby',
     votingEndTime: null,
     teams,
+    traitors,
+    traitorKills: {},
     eliminated: [],
     lastRoundEliminated: [],
     talliesA: {}, hasVotedA: {},
@@ -666,6 +682,7 @@ async function startVoting() {
   await db.collection('rooms').doc(roomId).update({
     phase: 'voting',
     votingEndTime: endTime,
+    traitorKills: {},
     talliesA: {}, hasVotedA: {},
     talliesB: {}, hasVotedB: {},
     talliesC: {}, hasVotedC: {},
@@ -673,6 +690,7 @@ async function startVoting() {
     talliesE: {}, hasVotedE: {},
     talliesF: {}, hasVotedF: {}
   });
+  playVotingAudio();
 }
 
 async function finishVoting() {
@@ -680,6 +698,7 @@ async function finishVoting() {
   if (lastState?.phase !== 'voting') return;
   advancing = true;
   stopTimerDisplay();
+  pauseVotingAudio();
   try {
     await db.collection('rooms').doc(roomId).update({ phase: 'round_done', votingEndTime: null });
   } finally { advancing = false; }
@@ -690,11 +709,33 @@ async function confirmEliminations() {
   const round = state.round;
   const cfg   = ROUND_CFG[round];
   let allElim = [];
+
   for (const t of TEAMS) {
-    const active = (state.teams[t] || []).filter(n => !(state.eliminated || []).includes(n));
-    const { toEliminate } = calcElims(state[`tallies${t}`] || {}, active, cfg.epTeam);
-    allElim = [...allElim, ...toEliminate];
+    const active      = (state.teams[t] || []).filter(n => !(state.eliminated || []).includes(n));
+    const tallies     = state[`tallies${t}`] || {};
+    const traitorKill = state.traitorKills?.[t] || null;
+    // Only honour the kill if the target is still active this round
+    const validKill   = (traitorKill && active.includes(traitorKill)) ? traitorKill : null;
+
+    let teamElim;
+    if (validKill) {
+      // Kill takes 1 of the N elimination slots; vote-tally fills the rest
+      const remaining = active.filter(n => n !== validKill);
+      const needed    = Math.max(0, cfg.epTeam - 1);
+      if (needed > 0 && remaining.length > 0) {
+        const { toEliminate } = calcElims(tallies, remaining, needed);
+        teamElim = [validKill, ...toEliminate];
+      } else {
+        teamElim = [validKill];
+      }
+    } else {
+      const { toEliminate } = calcElims(tallies, active, cfg.epTeam);
+      teamElim = toEliminate;
+    }
+
+    allElim = [...allElim, ...teamElim];
   }
+
   const newElim = [...(state.eliminated || []), ...allElim];
   const resetTallies = {};
   for (const t of TEAMS) { resetTallies[`tallies${t}`] = {}; resetTallies[`hasVoted${t}`] = {}; }
@@ -719,6 +760,7 @@ async function startFinalVoting() {
     votingEndTime: endTime,
     talliesFinal: {}, hasVotedFinal: {}
   });
+  playVotingAudio();
 }
 
 async function finishFinalVoting() {
@@ -726,6 +768,7 @@ async function finishFinalVoting() {
   if (lastState?.phase !== 'final_voting') return;
   advancing = true;
   stopTimerDisplay();
+  pauseVotingAudio();
   try {
     await db.collection('rooms').doc(roomId).update({ phase: 'final_done', votingEndTime: null });
   } finally { advancing = false; }
@@ -739,17 +782,21 @@ async function confirmWinners() {
   const { toEliminate } = calcElims(state.talliesFinal || {}, activePlayers, 6);
   const newElim = [...(state.eliminated || []), ...toEliminate];
   await db.collection('rooms').doc(roomId).update({ eliminated: newElim, lastRoundEliminated: toEliminate, phase: 'winners' });
+  pauseVotingAudio();
+  try { winnersAudio.currentTime = 0; winnersAudio.play().catch(() => {}); } catch(e) {}
 }
 
 
 async function confirmReset() {
   if (!confirm('Reset the entire game? This clears all votes and progress.')) return;
+  resetAllAudio();
   if (!roomId) { location.reload(); return; }
   const teams = { A: [], B: [], C: [], D: [], E: [], F: [] };
   for (const p of PLAYERS) { if (p.team && teams[p.team]) teams[p.team].push(p.name); }
   await db.collection('rooms').doc(roomId).update({
     round: 1, phase: 'lobby', votingEndTime: null,
     teams, eliminated: [], lastRoundEliminated: [],
+    traitorKills: {},
     talliesA: {}, hasVotedA: {},
     talliesB: {}, hasVotedB: {},
     talliesC: {}, hasVotedC: {},
@@ -828,6 +875,35 @@ function updateTimerEl(secs) {
   if (!el) return;
   el.textContent = secs;
   el.className = 'timer-num' + (secs <= 10 && secs > 0 ? ' urgent' : '');
+}
+
+// ═══════════════════════════════════════════════════
+//  AUDIO
+// ═══════════════════════════════════════════════════
+function playVotingAudio() {
+  try {
+    votingAudio.currentTime = votingAudioPos;
+    votingAudio.play().catch(() => {});
+  } catch(e) {}
+}
+
+function pauseVotingAudio() {
+  try {
+    if (!votingAudio.paused) {
+      votingAudioPos = votingAudio.currentTime;
+      votingAudio.pause();
+    }
+  } catch(e) {}
+}
+
+function resetAllAudio() {
+  try {
+    votingAudio.pause();
+    votingAudio.currentTime = 0;
+    votingAudioPos = 0;
+    winnersAudio.pause();
+    winnersAudio.currentTime = 0;
+  } catch(e) {}
 }
 
 // ═══════════════════════════════════════════════════
@@ -946,13 +1022,36 @@ function renderRoundDone(state) {
   document.getElementById('voteProgressBar').style.display = 'none';
   const cfg = ROUND_CFG[state.round] || ROUND_CFG[1];
 
+  // Single pass: compute eliminations (incl. traitor kills) for all teams
+  const teamResults  = {};
   let allToEliminate = [];
   let anyTiebreaker  = false;
+
   for (const t of TEAMS) {
-    const active = (state.teams[t] || []).filter(n => !(state.eliminated || []).includes(n));
-    const { toEliminate, tiebreakerUsed } = calcElims(state[`tallies${t}`] || {}, active, cfg.epTeam);
-    allToEliminate = [...allToEliminate, ...toEliminate];
-    if (tiebreakerUsed) anyTiebreaker = true;
+    const active      = (state.teams[t] || []).filter(n => !(state.eliminated || []).includes(n));
+    const tallies     = state[`tallies${t}`] || {};
+    const traitorKill = state.traitorKills?.[t] || null;
+    const validKill   = (traitorKill && active.includes(traitorKill)) ? traitorKill : null;
+
+    let toEliminate;
+    if (validKill) {
+      const remaining = active.filter(n => n !== validKill);
+      const needed    = Math.max(0, cfg.epTeam - 1);
+      if (needed > 0 && remaining.length > 0) {
+        const { toEliminate: ve, tiebreakerUsed } = calcElims(tallies, remaining, needed);
+        toEliminate = [validKill, ...ve];
+        if (tiebreakerUsed) anyTiebreaker = true;
+      } else {
+        toEliminate = [validKill];
+      }
+    } else {
+      const { toEliminate: ve, tiebreakerUsed } = calcElims(tallies, active, cfg.epTeam);
+      toEliminate = ve;
+      if (tiebreakerUsed) anyTiebreaker = true;
+    }
+
+    teamResults[t]  = { active, tallies, toEliminate, validKill };
+    allToEliminate  = [...allToEliminate, ...toEliminate];
   }
 
   document.getElementById('phaseLabel').textContent = 'Round Results';
@@ -968,13 +1067,15 @@ function renderRoundDone(state) {
   if (anyTiebreaker) {
     html += `<div class="tie-warning" style="background:rgba(201,168,76,0.07);border-color:rgba(201,168,76,0.3);color:var(--gold-light);">🎲 Vote tie in one or more teams — tiebreaker applied. Eliminations are final.</div>`;
   }
+  const killCount = TEAMS.filter(t => teamResults[t].validKill).length;
+  if (killCount > 0) {
+    html += `<div class="tie-warning" style="background:rgba(139,26,26,0.07);border-color:rgba(192,57,43,0.25);color:rgba(232,128,128,0.7);">⚔ ${killCount} traitor kill${killCount > 1 ? 's' : ''} this round — marked below</div>`;
+  }
 
   html += `<div class="teams-grid-6">`;
   for (const t of TEAMS) {
-    const active  = (state.teams[t] || []).filter(n => !(state.eliminated || []).includes(n));
-    const tallies = state[`tallies${t}`] || {};
-    const { toEliminate } = calcElims(tallies, active, cfg.epTeam);
-    html += `<div>${buildTallySection(`Team ${t}`, tallies, active, toEliminate)}</div>`;
+    const { active, tallies, toEliminate, validKill } = teamResults[t];
+    html += `<div>${buildTallySection(`Team ${t}`, tallies, active, toEliminate, validKill)}</div>`;
   }
   html += `</div>`;
 
@@ -1173,7 +1274,7 @@ function buildTeamPanel(state, team, votingTeam, tallies, hasVoted, showVotes) {
   return html;
 }
 
-function buildTallySection(title, tallies, playerNames, toEliminate) {
+function buildTallySection(title, tallies, playerNames, toEliminate, traitorKill = null) {
   const sorted = [...playerNames]
     .map(name => ({ name, votes: tallies[name] || 0 }))
     .sort((a, b) => b.votes - a.votes);
@@ -1186,10 +1287,11 @@ function buildTallySection(title, tallies, playerNames, toEliminate) {
     </div>`;
 
   for (const p of sorted) {
-    const willElim = toEliminate.includes(p.name);
-    const pct      = Math.round(p.votes / maxVotes * 100);
-    const player   = (lastState?.players || []).find(pl => pl.name === p.name) || { name: p.name };
-    const ava      = player.photo
+    const willElim      = toEliminate.includes(p.name);
+    const isTraitorKill = p.name === traitorKill;
+    const pct           = Math.round(p.votes / maxVotes * 100);
+    const player        = (lastState?.players || []).find(pl => pl.name === p.name) || { name: p.name };
+    const ava           = player.photo
       ? `<img src="images/${player.photo}" class="tally-avatar-sm" alt="${p.name}" onerror="this.outerHTML='<div class=\\'tally-avatar-sm\\'>${initials(p.name)}</div>'">`
       : `<div class="tally-avatar-sm">${initials(p.name)}</div>`;
 
@@ -1198,7 +1300,9 @@ function buildTallySection(title, tallies, playerNames, toEliminate) {
       <div class="tally-name">${p.name}</div>
       <div class="tally-bar-wrap"><div class="tally-bar-fill" style="width:${pct}%"></div></div>
       <div class="tally-count">${p.votes}</div>
-      ${willElim ? '<div class="elim-pill">ELIMINATED</div>' : ''}
+      ${isTraitorKill
+        ? '<div class="elim-pill" style="background:rgba(139,26,26,0.3);border-color:rgba(192,57,43,0.6);">⚔ KILL</div>'
+        : willElim ? '<div class="elim-pill">ELIMINATED</div>' : ''}
     </div>`;
   }
 

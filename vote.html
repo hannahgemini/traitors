@@ -894,18 +894,28 @@ async function castVote() {
   document.getElementById('castBtn').disabled = true;
   document.querySelectorAll('.vote-card').forEach(el => el.classList.add('locked'));
 
-  const phase = lastState?.phase || '';
-  const update = {};
+  const phase     = lastState?.phase || '';
+  const update    = {};
+  const isTraitor = (lastState?.traitors || []).includes(currentPlayer);
 
   if (phase === 'final_voting') {
+    // Final round: traitor mechanic does not apply — vote normally
     selectedVotes.forEach(name => {
       update[`talliesFinal.${name}`] = firebase.firestore.FieldValue.increment(1);
     });
     update[`hasVotedFinal.${currentPlayer}`] = true;
   } else if (phase === 'voting' && myVotingTeam) {
-    selectedVotes.forEach(name => {
-      update[`tallies${myVotingTeam}.${name}`] = firebase.firestore.FieldValue.increment(1);
-    });
+    if (isTraitor && selectedVotes.length === 2) {
+      // First selection = guaranteed traitor kill (recorded separately, not tallied)
+      update[`traitorKills.${myVotingTeam}`] = selectedVotes[0];
+      // Second selection = normal tally vote
+      update[`tallies${myVotingTeam}.${selectedVotes[1]}`] = firebase.firestore.FieldValue.increment(1);
+    } else {
+      // Normal player: both selections go into the tally
+      selectedVotes.forEach(name => {
+        update[`tallies${myVotingTeam}.${name}`] = firebase.firestore.FieldValue.increment(1);
+      });
+    }
     update[`hasVoted${myVotingTeam}.${currentPlayer}`] = true;
   }
 

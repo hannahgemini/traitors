@@ -5,80 +5,82 @@
 //  51 players assigned to 6 teams (A–F).
 //  Team sizes: A=8, B=8, C=8, D=8, E=9, F=10
 //
-//  To reassign teams, change the `team` property on any player.
-//  Drop photo files into the images/ folder.
+//  TRAITORS: Set `traitor: true` on exactly ONE player per team
+//  (6 traitors total). All others stay `traitor: false`.
+//  The traitor's first vote each round is a guaranteed elimination
+//  regardless of how many votes that player received.
 //
 //  EXAMPLE ENTRY:
-//    { name: "Alice Smith",  photo: "alice.jpg",  team: "A" },
-//    { name: "Bob Johnson",  photo: null,         team: "B" },
+//    { name: "Alice Smith",  photo: "alice.jpg",  team: "A", traitor: true  },
+//    { name: "Bob Johnson",  photo: null,         team: "A", traitor: false },
 //
 // ============================================================
 
 const PLAYERS = [
   // ─── TEAM A — 8 players ──────────────────────────────────
-  { name: "Sara Woodroffe",     photo: null,  team: "A" },
-  { name: "Farida Ali",      photo: null,  team: "A" },
-  { name: "Simon Thomas",      photo: null,    team: "A" },
-  { name: "Lyn Simpson",      photo: null,  team: "A" },
-  { name: "Steve Cowin",      photo: null,  team: "A" },
-  { name: "Lisa Kerr",       photo: null,   team: "A" },
-  { name: "Tom Deighton",     photo: null,  team: "A" },
-  { name: "Rebecca Graham",        photo: null,  team: "A" },
+  { name: "Sara Woodroffe",     photo: null,  team: "A", traitor: false },
+  { name: "Farida Ali",         photo: null,  team: "A", traitor: false },
+  { name: "Simon Thomas",       photo: null,  team: "A", traitor: false },
+  { name: "Lyn Simpson",        photo: null,  team: "A", traitor: false },
+  { name: "Steve Cowin",        photo: null,  team: "A", traitor: false },
+  { name: "Lisa Kerr",          photo: null,  team: "A", traitor: false },
+  { name: "Tom Deighton",       photo: null,  team: "A", traitor: false },
+  { name: "Rebecca Graham",     photo: null,  team: "A", traitor: false },
 
 
   // ─── TEAM B — 8 players ──────────────────────────────────
-  { name: "Sana Patel",    photo: null,         team: "B" },
-  { name: "Greg MacDonald",       photo: null,         team: "B" },
-  { name: "Anne-Marie Dempsey",     photo: null,         team: "B" },
-  { name: "Carla Brown",      photo: null,         team: "B" },
-  { name: "Ryan King",     photo: null,         team: "B" },
-  { name: "Rachel Stewart",     photo: null,         team: "B" },
-  { name: "Ben Aldersley",      photo: null,         team: "B" },
-  { name: "James Macaulay",    photo: null,         team: "B" },
+  { name: "Sana Patel",         photo: null,  team: "B", traitor: false },
+  { name: "Greg MacDonald",     photo: null,  team: "B", traitor: false },
+  { name: "Anne-Marie Dempsey", photo: null,  team: "B", traitor: false },
+  { name: "Carla Brown",        photo: null,  team: "B", traitor: false },
+  { name: "Ryan King",          photo: null,  team: "B", traitor: false },
+  { name: "Rachel Stewart",     photo: null,  team: "B", traitor: false },
+  { name: "Ben Aldersley",      photo: null,  team: "B", traitor: false },
+  { name: "James Macaulay",     photo: null,  team: "B", traitor: false },
 
 
   // ─── TEAM C — 8 players ──────────────────────────────────
-  { name: "Sarah Brewis",      photo: null,         team: "C" },
-  { name: "Kim Woodburn",     photo: null,         team: "C" },
-  { name: "Kevin Oh",         photo: null,         team: "C" },
-  { name: "Irene Leung",      photo: null,         team: "C" },
-  { name: "Andrew Cochran",        photo: null,         team: "C" },
-  { name: "Hassan Kamara",     photo: null,         team: "C" },
-  { name: "Mac Marlowe",      photo: null,         team: "C" },
-  { name: "Ben Harper",     photo: null,         team: "C" },
+  { name: "Sarah Brewis",       photo: null,  team: "C", traitor: false },
+  { name: "Kim Woodburn",       photo: null,  team: "C", traitor: false },
+  { name: "Kevin Oh",           photo: null,  team: "C", traitor: false },
+  { name: "Irene Leung",        photo: null,  team: "C", traitor: false },
+  { name: "Andrew Cochran",     photo: null,  team: "C", traitor: false },
+  { name: "Hassan Kamara",      photo: null,  team: "C", traitor: false },
+  { name: "Mac Marlowe",        photo: null,  team: "C", traitor: false },
+  { name: "Ben Harper",         photo: null,  team: "C", traitor: false },
 
   // ─── TEAM D — 8 players ──────────────────────────────────
-  { name: "Stella Nabukeera",    photo: null,         team: "D" },
-  { name: "Correne Alexis",       photo: null,         team: "D" },
-  { name: "Juliet Griffiths",   photo: null,         team: "D" },
-  { name: "Patrick Cassidy",      photo: null,         team: "D" },
-  { name: "Joanna Hill",     photo: null,         team: "D" },
-  { name: "Joanna Lipscombe",   photo: null,         team: "D" },
-  { name: "Kostantinos Oikonomakos",   photo: null,         team: "D" },
-  { name: "David Chong",     photo: null,         team: "D" },
+  { name: "Stella Nabukeera",         photo: null,  team: "D", traitor: false },
+  { name: "Correne Alexis",           photo: null,  team: "D", traitor: false },
+  { name: "Juliet Griffiths",         photo: null,  team: "D", traitor: false },
+  { name: "Patrick Cassidy",          photo: null,  team: "D", traitor: false },
+  { name: "Joanna Hill",              photo: null,  team: "D", traitor: false },
+  { name: "Joanna Lipscombe",         photo: null,  team: "D", traitor: false },
+  { name: "Kostantinos Oikonomakos",  photo: null,  team: "D", traitor: false },
+  { name: "David Chong",              photo: null,  team: "D", traitor: false },
 
   // ─── TEAM E — 9 players ──────────────────────────────────
-  { name: "James Harvey",     photo: null,         team: "E" },
-  { name: "Soraya Amadi",   photo: null,         team: "E" },
-  { name: "Susan Lynch",     photo: null,         team: "E" },
-  { name: "Sal Vassan",    photo: null,         team: "E" },
-  { name: "Naomi Lawrence",     photo: null,         team: "E" },
-  { name: "Rob Shaw",     photo: null,         team: "E" },
-  { name: "Louise Brennan",    photo: null,         team: "E" },
-  { name: "Fatima Khanom",        photo: null,         team: "E" },
-  { name: "Matthew Jackson",       photo: null,         team: "E" },
+  { name: "James Harvey",       photo: null,  team: "E", traitor: false },
+  { name: "Soraya Amadi",       photo: null,  team: "E", traitor: false },
+  { name: "Susan Lynch",        photo: null,  team: "E", traitor: false },
+  { name: "Sal Vassan",         photo: null,  team: "E", traitor: false },
+  { name: "Naomi Lawrence",     photo: null,  team: "E", traitor: false },
+  { name: "Rob Shaw",           photo: null,  team: "E", traitor: false },
+  { name: "Louise Brennan",     photo: null,  team: "E", traitor: false },
+  { name: "Fatima Khanom",      photo: null,  team: "E", traitor: false },
+  { name: "Matthew Jackson",    photo: null,  team: "E", traitor: false },
 
   // ─── TEAM F — 10 players ─────────────────────────────────
-  { name: "Shaun Donnelly",     photo: null,         team: "F" },
-  { name: "Mrinal Sen",     photo: null,         team: "F" },
-  { name: "Mark Hollinworth",      photo: null,         team: "F" },
-  { name: "Sum Sze Tam",     photo: null,         team: "F" },
-  { name: "Ateed Butt",     photo: null,         team: "F" },
-  { name: "Lewis Gregory",   photo: null,         team: "F" },
-  { name: "Sinead Turner",  photo: null,         team: "F" },
-  { name: "Richard Briggs",        photo: null,         team: "F" },
-  { name: "Joe Hawes",      photo: null,         team: "F" },
-  { name: "Mark Mulford",    photo: null,         team: "F" },
+  { name: "Shaun Donnelly",     photo: null,  team: "F", traitor: false },
+  { name: "Mrinal Sen",         photo: null,  team: "F", traitor: false },
+  { name: "Mark Hollinworth",   photo: null,  team: "F", traitor: false },
+  { name: "Sum Sze Tam",        photo: null,  team: "F", traitor: false },
+  { name: "Ateed Butt",         photo: null,  team: "F", traitor: false },
+  { name: "Lewis Gregory",      photo: null,  team: "F", traitor: false },
+  { name: "Sinead Turner",      photo: null,  team: "F", traitor: false },
+  { name: "Richard Briggs",     photo: null,  team: "F", traitor: false },
+  { name: "Joe Hawes",          photo: null,  team: "F", traitor: false },
+  { name: "Mark Mulford",       photo: null,  team: "F", traitor: false },
 ];
 
 // ── Quick reference ──────────────────────────────────────────
@@ -89,3 +91,8 @@ const PLAYERS = [
 // Round 2: 2 eliminated per team = 12 total  →  27 remain
 // Round 3: 3 eliminated per team = 18 total  →   9 remain
 // Final:   all 51 vote · top 6 eliminated    →   3 winners
+//
+// Traitor mechanic (rounds 1–3 only):
+//   · First vote selection  = guaranteed kill (not tallied)
+//   · Second vote selection = normal tally vote
+//   · Kill counts as 1 of the N eliminations for that team
