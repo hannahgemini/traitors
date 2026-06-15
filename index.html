@@ -641,7 +641,7 @@ async function openHostRoom(apiKey, projectId, appId) {
   document.getElementById('roomCodeDisplay').textContent = roomId;
 
   // Build join URL with Firebase creds embedded (so players don't need to enter them)
-  const base = location.href.replace('index.html', '').replace(/\/?$/, '/');
+  const base = (location.origin + location.pathname).replace('index.html', '').replace(/\/?$/, '/');
   const joinUrl = `${base}vote.html?room=${roomId}&pid=${encodeURIComponent(projectId)}&key=${encodeURIComponent(apiKey)}&aid=${encodeURIComponent(appId)}`;
   document.getElementById('joinUrl').textContent = joinUrl;
   document.getElementById('joinUrl').title = joinUrl;
