@@ -18,7 +18,7 @@
 
 const PLAYERS = [
   // ─── TEAM A — 8 players ──────────────────────────────────
-  { name: "Sara Woodroffe",     photo: null,  team: "A", traitor: false },
+  { name: "Sara Woodroffe",     photo: null,  team: "A", traitor: true },
   { name: "Farida Ali",         photo: null,  team: "A", traitor: false },
   { name: "Simon Thomas",       photo: null,  team: "A", traitor: false },
   { name: "Lyn Simpson",        photo: null,  team: "A", traitor: false },
@@ -29,7 +29,7 @@ const PLAYERS = [
 
 
   // ─── TEAM B — 8 players ──────────────────────────────────
-  { name: "Sana Patel",         photo: null,  team: "B", traitor: false },
+  { name: "Sana Patel",         photo: null,  team: "B", traitor: true },
   { name: "Greg MacDonald",     photo: null,  team: "B", traitor: false },
   { name: "Anne-Marie Dempsey", photo: null,  team: "B", traitor: false },
   { name: "Carla Brown",        photo: null,  team: "B", traitor: false },
@@ -40,7 +40,7 @@ const PLAYERS = [
 
 
   // ─── TEAM C — 8 players ──────────────────────────────────
-  { name: "Sarah Brewis",       photo: null,  team: "C", traitor: false },
+  { name: "Sarah Brewis",       photo: null,  team: "C", traitor: true },
   { name: "Kim Woodburn",       photo: null,  team: "C", traitor: false },
   { name: "Kevin Oh",           photo: null,  team: "C", traitor: false },
   { name: "Irene Leung",        photo: null,  team: "C", traitor: false },
@@ -50,7 +50,7 @@ const PLAYERS = [
   { name: "Ben Harper",         photo: null,  team: "C", traitor: false },
 
   // ─── TEAM D — 8 players ──────────────────────────────────
-  { name: "Stella Nabukeera",         photo: null,  team: "D", traitor: false },
+  { name: "Stella Nabukeera",         photo: null,  team: "D", traitor: true },
   { name: "Correne Alexis",           photo: null,  team: "D", traitor: false },
   { name: "Juliet Griffiths",         photo: null,  team: "D", traitor: false },
   { name: "Patrick Cassidy",          photo: null,  team: "D", traitor: false },
@@ -60,7 +60,7 @@ const PLAYERS = [
   { name: "David Chong",              photo: null,  team: "D", traitor: false },
 
   // ─── TEAM E — 9 players ──────────────────────────────────
-  { name: "James Harvey",       photo: null,  team: "E", traitor: false },
+  { name: "James Harvey",       photo: null,  team: "E", traitor: true },
   { name: "Soraya Amadi",       photo: null,  team: "E", traitor: false },
   { name: "Susan Lynch",        photo: null,  team: "E", traitor: false },
   { name: "Sal Vassan",         photo: null,  team: "E", traitor: false },
@@ -71,7 +71,7 @@ const PLAYERS = [
   { name: "Matthew Jackson",    photo: null,  team: "E", traitor: false },
 
   // ─── TEAM F — 10 players ─────────────────────────────────
-  { name: "Shaun Donnelly",     photo: null,  team: "F", traitor: false },
+  { name: "Shaun Donnelly",     photo: null,  team: "F", traitor: true },
   { name: "Mrinal Sen",         photo: null,  team: "F", traitor: false },
   { name: "Mark Hollinworth",   photo: null,  team: "F", traitor: false },
   { name: "Sum Sze Tam",        photo: null,  team: "F", traitor: false },
