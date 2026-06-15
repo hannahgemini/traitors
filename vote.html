@@ -164,6 +164,10 @@ input:focus { border-color: rgba(201,168,76,0.55); }
 }
 .voter-team-badge.team-a { background: rgba(42,114,168,0.2); border: 1px solid rgba(42,114,168,0.4); color: #74b9ff; }
 .voter-team-badge.team-b { background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.3); color: var(--gold); }
+.voter-team-badge.team-c { background: rgba(147,51,234,0.2); border: 1px solid rgba(147,51,234,0.4); color: #c084fc; }
+.voter-team-badge.team-d { background: rgba(5,150,105,0.2); border: 1px solid rgba(5,150,105,0.4); color: #34d399; }
+.voter-team-badge.team-e { background: rgba(217,119,6,0.2); border: 1px solid rgba(217,119,6,0.4); color: #fbbf24; }
+.voter-team-badge.team-f { background: rgba(220,38,38,0.2); border: 1px solid rgba(220,38,38,0.4); color: #f87171; }
 
 /* Timer on player screen */
 .player-timer {
@@ -223,6 +227,13 @@ input:focus { border-color: rgba(201,168,76,0.55); }
 }
 .vote-card.selected .vote-selected-icon { display: flex; }
 .vote-selected-icon svg { width: 10px; height: 10px; }
+.vote-num-badge {
+  position: absolute; top: 6px; left: 6px; width: 20px; height: 20px;
+  border-radius: 50%; background: var(--blood-red); display: none;
+  align-items: center; justify-content: center;
+  font-family: 'Cinzel', serif; font-size: 11px; font-weight: 700; color: #fff;
+}
+.vote-card.selected .vote-num-badge { display: flex; }
 
 .vote-tally-row {
   display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
@@ -391,6 +402,7 @@ input:focus { border-color: rgba(201,168,76,0.55); }
         <div style="font-family:'Cinzel',serif;font-size:11px;color:rgba(245,236,215,0.35);">SEC</div>
       </div>
       <div class="vote-instruction" id="voteInstruction">Select 2 players from your team to eliminate</div>
+      <div id="voteCounter" style="text-align:center;font-family:'Cinzel',serif;font-size:13px;color:rgba(245,236,215,0.4);margin-bottom:0.75rem;letter-spacing:2px;">0 / 2 selected</div>
       <div class="vote-grid" id="voteGrid"></div>
       <button class="btn-cast" id="castBtn" onclick="castVote()" disabled>Cast Vote in Secret</button>
     </div>
@@ -464,10 +476,20 @@ input:focus { border-color: rgba(201,168,76,0.55); }
 //  GLOBALS
 // ═══════════════════════════════════════════════════
 let db, roomId, currentPlayer, myDeviceId, unsubVote, lastState;
-let selectedVotes = [];   // array of player names selected this round
-let votesAllowed  = 2;    // 1 for final round
-let timerInterval = null;
+let selectedVotes    = [];
+let votesAllowed     = 2;
+let timerInterval    = null;
 let hasSubmittedVote = false;
+let myVotingTeam     = null; // team letter (A-F) when voting screen is open
+
+const TEAM_BADGE_STYLES = {
+  A: 'background:rgba(42,114,168,0.15);border:1px solid rgba(42,114,168,0.35);color:#74b9ff;',
+  B: 'background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);color:var(--gold);',
+  C: 'background:rgba(147,51,234,0.15);border:1px solid rgba(147,51,234,0.35);color:#c084fc;',
+  D: 'background:rgba(5,150,105,0.15);border:1px solid rgba(5,150,105,0.35);color:#34d399;',
+  E: 'background:rgba(217,119,6,0.15);border:1px solid rgba(217,119,6,0.35);color:#fbbf24;',
+  F: 'background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.35);color:#f87171;'
+};
 
 const SCREENS = ['joinScreen','pickerScreen','votingScreen','waitingScreen','resultsScreen','winnersScreen','errorScreen'];
 const LS_DEVICE_KEY  = 'traitors_device_id';
@@ -653,34 +675,19 @@ function routePlayerView(state) {
 
   if (phase === 'winners') { showWinnersScreen(state); return; }
 
-  if (phase === 'team_a_voting') {
+  if (phase === 'voting') {
     if (iAmElim) { showWaiting('Eliminated', 'You have been eliminated.\nWatch the host screen for results.'); return; }
-    if (myTeam === 'A') {
-      // Check if already voted
-      if (state.hasVotedA?.[currentPlayer]) { showWaiting('Vote Cast', 'Your vote has been recorded.\nAwaiting remaining Team A votes…'); return; }
-      showVotingScreen(state, 'A'); return;
+    const hasVotedKey = myTeam ? `hasVoted${myTeam}` : null;
+    if (hasVotedKey && state[hasVotedKey]?.[currentPlayer]) {
+      showWaiting('Vote Cast', 'Your vote has been recorded.\nAwaiting remaining votes…'); return;
     }
-    showWaiting('Team A Voting', 'Team A is currently voting…\nYou will vote next.'); return;
+    if (!myTeam) { showWaiting('Stand By', 'Waiting for the host…'); return; }
+    showVotingScreen(state, myTeam); return;
   }
 
-  if (phase === 'team_a_done') {
-    if (myTeam === 'A') { showResultsScreen(state, 'A'); return; }
-    showWaiting('Team A Done', 'Team A have voted. Waiting for Team B voting to begin…'); return;
-  }
-
-  if (phase === 'team_b_voting') {
-    if (iAmElim) { showWaiting('Eliminated', 'You have been eliminated.\nWatch the host screen for results.'); return; }
-    if (myTeam === 'B') {
-      if (state.hasVotedB?.[currentPlayer]) { showWaiting('Vote Cast', 'Your vote has been recorded.\nAwaiting remaining Team B votes…'); return; }
-      showVotingScreen(state, 'B'); return;
-    }
-    showWaiting('Team B Voting', 'Team B is currently voting…'); return;
-  }
-
-  if (phase === 'team_b_done') {
-    // Both teams see results (team A sees their earlier results, team B sees theirs)
-    const showTeam = myTeam || 'B';
-    showResultsScreen(state, showTeam); return;
+  if (phase === 'round_done') {
+    if (myTeam) { showResultsScreen(state, myTeam); return; }
+    showWaiting('Stand By', 'Results coming…'); return;
   }
 
   if (phase === 'final_voting') {
@@ -784,6 +791,7 @@ function showVotingScreen(state, teamContext) {
   }
 
   show('votingScreen');
+  myVotingTeam  = teamContext === 'final' ? null : teamContext;
   const isFinal = teamContext === 'final';
   votesAllowed  = isFinal ? 1 : 2;
   selectedVotes = [];
@@ -791,17 +799,15 @@ function showVotingScreen(state, teamContext) {
   document.getElementById('votingAsName').textContent = currentPlayer;
   const myTeam = getMyTeam(state);
   const badge  = document.getElementById('votingTeamBadge');
-  if (isFinal) {
-    badge.textContent = 'Final Round';
-    badge.className   = 'voter-team-badge team-a';
-  } else {
-    badge.textContent = `Team ${myTeam}`;
-    badge.className   = `voter-team-badge team-${(myTeam || 'a').toLowerCase()}`;
-  }
+  badge.textContent = isFinal ? 'Final Round' : `Team ${myTeam}`;
+  badge.className   = `voter-team-badge team-${isFinal ? 'a' : (myTeam || 'a').toLowerCase()}`;
 
   document.getElementById('voteInstruction').textContent = isFinal
     ? 'Vote for who you think is the Traitor (1 vote)'
     : `Select ${votesAllowed} players from your team to eliminate`;
+
+  const counterEl = document.getElementById('voteCounter');
+  if (counterEl) counterEl.textContent = `0 / ${votesAllowed} selected`;
 
   document.getElementById('castBtn').disabled = true;
 
@@ -830,6 +836,7 @@ function showVotingScreen(state, teamContext) {
           <polyline points="1,5 4,8 9,2"/>
         </svg>
       </div>
+      <div class="vote-num-badge"></div>
     </div>`
   ).join('');
 
@@ -857,12 +864,24 @@ function toggleVote(name) {
     selectedVotes.push(name);
   }
 
-  // Update UI
-  document.querySelectorAll('.vote-card').forEach(el => el.classList.remove('selected'));
-  selectedVotes.forEach(n => {
-    const el = document.getElementById('vc_' + safeId(n));
-    if (el) el.classList.add('selected');
+  // Clear all selections and badges
+  document.querySelectorAll('.vote-card').forEach(el => {
+    el.classList.remove('selected');
+    const badge = el.querySelector('.vote-num-badge');
+    if (badge) badge.textContent = '';
   });
+  // Apply numbered badges for each selection
+  selectedVotes.forEach((n, i) => {
+    const el = document.getElementById('vc_' + safeId(n));
+    if (el) {
+      el.classList.add('selected');
+      const badge = el.querySelector('.vote-num-badge');
+      if (badge) badge.textContent = i + 1;
+    }
+  });
+
+  const counterEl = document.getElementById('voteCounter');
+  if (counterEl) counterEl.textContent = `${selectedVotes.length} / ${votesAllowed} selected`;
 
   document.getElementById('castBtn').disabled = (selectedVotes.length < votesAllowed);
 }
@@ -883,16 +902,11 @@ async function castVote() {
       update[`talliesFinal.${name}`] = firebase.firestore.FieldValue.increment(1);
     });
     update[`hasVotedFinal.${currentPlayer}`] = true;
-  } else if (phase === 'team_a_voting') {
+  } else if (phase === 'voting' && myVotingTeam) {
     selectedVotes.forEach(name => {
-      update[`talliesA.${name}`] = firebase.firestore.FieldValue.increment(1);
+      update[`tallies${myVotingTeam}.${name}`] = firebase.firestore.FieldValue.increment(1);
     });
-    update[`hasVotedA.${currentPlayer}`] = true;
-  } else if (phase === 'team_b_voting') {
-    selectedVotes.forEach(name => {
-      update[`talliesB.${name}`] = firebase.firestore.FieldValue.increment(1);
-    });
-    update[`hasVotedB.${currentPlayer}`] = true;
+    update[`hasVoted${myVotingTeam}.${currentPlayer}`] = true;
   }
 
   try {
@@ -936,10 +950,8 @@ function showWaiting(title, msg, allowBack = false) {
     const myTeam = getMyTeam(lastState);
     if (myTeam) {
       teamLabelEl.textContent = `Team ${myTeam}`;
-      teamLabelEl.style.display = 'inline-block';
-      teamLabelEl.style.cssText += myTeam === 'A'
-        ? ';background:rgba(42,114,168,0.15);border:1px solid rgba(42,114,168,0.35);color:#74b9ff;'
-        : ';background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);color:var(--gold);';
+      const style = TEAM_BADGE_STYLES[myTeam] || '';
+      teamLabelEl.style.cssText = `display:inline-block;font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;margin-top:6px;padding:2px 12px;border-radius:10px;${style}`;
     } else {
       teamLabelEl.style.display = 'none';
     }
@@ -964,23 +976,17 @@ function showResultsScreen(state, teamContext) {
   if (isFinal) {
     tallies = state.talliesFinal || {};
     players = (state.players || []).filter(p => !elim.includes(p.name));
-  } else if (teamContext === 'A') {
-    tallies = state.talliesA || {};
-    players = (state.players || []).filter(p => (state.teams?.A || []).includes(p.name) && !elim.includes(p.name));
   } else {
-    tallies = state.talliesB || {};
-    players = (state.players || []).filter(p => (state.teams?.B || []).includes(p.name) && !elim.includes(p.name));
+    tallies = state[`tallies${teamContext}`] || {};
+    players = (state.players || []).filter(p =>
+      (state.teams?.[teamContext] || []).includes(p.name) && !elim.includes(p.name));
   }
 
   const sorted   = [...players].sort((a, b) => (tallies[b.name] || 0) - (tallies[a.name] || 0));
   const total    = Math.max(1, sorted.reduce((s, p) => s + (tallies[p.name] || 0), 0));
   const maxVotes = sorted[0] ? tallies[sorted[0].name] || 0 : 0;
-  const topN     = isFinal ? 3 : (state.round ? (ROUND_EP[state.round] || 0) : 0);
-
-  // Who is being eliminated (top N by votes)
-  const toElim = isFinal
-    ? sorted.slice(0, 3).filter(p => (tallies[p.name] || 0) === (tallies[sorted[2]?.name] || 0) || sorted.indexOf(p) < 3).map(p => p.name)
-    : [];
+  // Final: top 6 eliminated (leaving 3 winners). Regular: epTeam per round
+  const topN = isFinal ? 6 : (state.round ? (ROUND_EP[state.round] || 0) : 0);
 
   document.getElementById('yourVoteNote').textContent = selectedVotes.length > 0
     ? `You voted for: ${selectedVotes.join(', ')}`
@@ -989,8 +995,7 @@ function showResultsScreen(state, teamContext) {
   document.getElementById('resultsListEl').innerHTML = sorted.map(p => {
     const v   = tallies[p.name] || 0;
     const pct = Math.round(v / total * 100);
-    const isTop = isFinal ? sorted.indexOf(p) < 3 && v === maxVotes
-                          : sorted.indexOf(p) < topN && v > 0 && v === maxVotes;
+    const isTop = sorted.indexOf(p) < topN && v > 0;
     return `<div class="result-item ${isTop ? 'top' : ''}">
       ${photoOrInitials(p, 'r-photo', 'r-initials')}
       <div class="r-name">${p.name}</div>
@@ -1002,13 +1007,12 @@ function showResultsScreen(state, teamContext) {
   // Elimination block
   const elimBlock = document.getElementById('elimBlockEl');
   if (isFinal && sorted.length > 0) {
-    const top3 = sorted.slice(0, 3);
+    const top6 = sorted.slice(0, 6);
     elimBlock.innerHTML = `<div class="elim-block">
-      <div class="elim-block-names">${top3.map(p => `<div class="elim-block-name">✕ ${p.name} ✕</div>`).join('')}</div>
+      <div class="elim-block-names">${top6.map(p => `<div class="elim-block-name">✕ ${p.name} ✕</div>`).join('')}</div>
       <div class="elim-block-sub">have been banished from the castle</div>
     </div>`;
   } else if (!isFinal && maxVotes > 0) {
-    const topPerson = sorted[0];
     elimBlock.innerHTML = `<div class="elim-block">
       <div class="elim-block-names"><div class="elim-block-name">Most votes this round</div></div>
       <div class="elim-block-sub">The host will confirm full results on the main screen</div>
@@ -1018,7 +1022,7 @@ function showResultsScreen(state, teamContext) {
   }
 }
 
-const ROUND_EP = { 1: 10, 2: 7, 3: 5 };
+const ROUND_EP = { 1: 2, 2: 2, 3: 3 };
 
 // ═══════════════════════════════════════════════════
 //  WINNERS SCREEN
@@ -1081,8 +1085,9 @@ function show(screenId) {
 
 function getMyTeam(state) {
   if (!currentPlayer || !state.teams) return null;
-  if ((state.teams.A || []).includes(currentPlayer)) return 'A';
-  if ((state.teams.B || []).includes(currentPlayer)) return 'B';
+  for (const t of ['A','B','C','D','E','F']) {
+    if ((state.teams[t] || []).includes(currentPlayer)) return t;
+  }
   return null;
 }
 

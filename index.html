@@ -217,8 +217,6 @@ input::placeholder { color: rgba(245,236,215,0.2); }
   background: rgba(245,236,215,0.02); border-radius: 14px;
   border: 1px solid rgba(201,168,76,0.12); overflow: hidden;
 }
-.team-panel.team-a { border-top: 3px solid var(--blue); }
-.team-panel.team-b { border-top: 3px solid var(--gold); }
 .team-panel.voting-active { box-shadow: 0 0 0 1px rgba(201,168,76,0.25), 0 8px 40px rgba(0,0,0,0.4); }
 
 .team-header {
@@ -228,8 +226,6 @@ input::placeholder { color: rgba(245,236,215,0.2); }
 .team-title {
   font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 2px; font-weight: 700;
 }
-.team-a .team-title { color: #74b9ff; }
-.team-b .team-title { color: var(--gold); }
 .team-meta { font-family: 'Cinzel', serif; font-size: 10px; color: rgba(245,236,215,0.3); letter-spacing: 1px; }
 
 .team-voting-badge {
@@ -409,7 +405,7 @@ input::placeholder { color: rgba(245,236,215,0.2); }
   padding: 3px 10px; border-radius: 20px; letter-spacing: 1px;
 }
 
-/* Lobby randomize area */
+/* Lobby area */
 .lobby-controls {
   background: rgba(201,168,76,0.04); border: 1px solid rgba(201,168,76,0.12);
   border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;
@@ -418,7 +414,28 @@ input::placeholder { color: rgba(245,236,215,0.2); }
 .lobby-info { flex: 1; }
 .lobby-info h3 { font-family: 'Cinzel', serif; font-size: 13px; color: var(--gold); margin-bottom: 4px; letter-spacing: 1px; }
 .lobby-info p { font-size: 13px; color: rgba(245,236,215,0.4); font-style: italic; }
-.lobby-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* 6-team grid */
+.teams-grid-6 {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem; margin-bottom: 1.5rem;
+}
+@media (max-width: 900px) { .teams-grid-6 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 620px) { .teams-grid-6 { grid-template-columns: 1fr; } }
+
+/* Team panel colour variants */
+.team-panel.team-a { border-top: 3px solid var(--blue); }
+.team-panel.team-b { border-top: 3px solid var(--gold); }
+.team-panel.team-c { border-top: 3px solid #9333ea; }
+.team-panel.team-d { border-top: 3px solid #059669; }
+.team-panel.team-e { border-top: 3px solid #d97706; }
+.team-panel.team-f { border-top: 3px solid #dc2626; }
+.team-a .team-title { color: #74b9ff; }
+.team-b .team-title { color: var(--gold); }
+.team-c .team-title { color: #c084fc; }
+.team-d .team-title { color: #34d399; }
+.team-e .team-title { color: #fbbf24; }
+.team-f .team-title { color: #f87171; }
 
 /* Status bar */
 .status-bar {
@@ -463,7 +480,7 @@ input::placeholder { color: rgba(245,236,215,0.2); }
   <div class="setup-card">
     <div class="setup-label">Players Setup</div>
     <div class="helper-text">
-      Edit <code style="color:var(--gold-light)">players.js</code> with your 50 player names and optional photo filenames.<br>
+      Edit <code style="color:var(--gold-light)">players.js</code> with your 51 player names and optional photo filenames.<br>
       Drop photo files into the <code style="color:var(--gold-light)">images/</code> folder. Then refresh and connect.
     </div>
   </div>
@@ -501,7 +518,7 @@ input::placeholder { color: rgba(245,236,215,0.2); }
   <div class="phase-banner" id="phaseBanner">
     <div>
       <div class="phase-label" id="phaseLabel">Lobby</div>
-      <div class="phase-desc" id="phaseDesc">Randomise teams and wait for players to join</div>
+      <div class="phase-desc" id="phaseDesc">Wait for players to join, then start voting</div>
     </div>
     <div class="phase-actions" id="phaseActions"></div>
   </div>
@@ -537,11 +554,12 @@ input::placeholder { color: rgba(245,236,215,0.2); }
 const LS_KEY = 'traitors_fb_config';
 const VOTE_SECS = 40;
 const ROUND_CFG = {
-  1:     { label: 'Round 1',     epTeam: 10, votes: 2, next: 2 },
-  2:     { label: 'Round 2',     epTeam:  7, votes: 2, next: 3 },
-  3:     { label: 'Round 3',     epTeam:  5, votes: 2, next: 'final' },
-  final: { label: 'Final Round', epTotal: 3, votes: 1, next: null }
+  1:     { label: 'Round 1',     epTeam: 2, votes: 2, next: 2 },
+  2:     { label: 'Round 2',     epTeam: 2, votes: 2, next: 3 },
+  3:     { label: 'Round 3',     epTeam: 3, votes: 2, next: 'final' },
+  final: { label: 'Final Round', epTotal: 6, votes: 1, next: null }
 };
+const TEAMS = ['A','B','C','D','E','F'];
 
 // ═══════════════════════════════════════════════════
 //  GLOBALS
@@ -591,19 +609,27 @@ function genRoomCode() {
 
 async function openHostRoom(apiKey, projectId, appId) {
   roomId = genRoomCode();
+
+  // Build teams from the `team` property in players.js
+  const teams = { A: [], B: [], C: [], D: [], E: [], F: [] };
+  for (const p of PLAYERS) { if (p.team && teams[p.team]) teams[p.team].push(p.name); }
+
   const initialState = {
     round: 1,
     phase: 'lobby',
     votingEndTime: null,
-    teams: { A: [], B: [] },
+    teams,
     eliminated: [],
     lastRoundEliminated: [],
     talliesA: {}, hasVotedA: {},
     talliesB: {}, hasVotedB: {},
+    talliesC: {}, hasVotedC: {},
+    talliesD: {}, hasVotedD: {},
+    talliesE: {}, hasVotedE: {},
+    talliesF: {}, hasVotedF: {},
     talliesFinal: {}, hasVotedFinal: {},
     players: PLAYERS.map(p => ({ name: p.name, photo: p.photo || null })),
     claimedBy: {},
-    teamsRandomized: false,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
 
@@ -633,92 +659,55 @@ function copyJoinUrl() {
 }
 
 // ═══════════════════════════════════════════════════
-//  TEAMS
-// ═══════════════════════════════════════════════════
-async function randomizeTeams() {
-  const shuffled = [...PLAYERS].sort(() => Math.random() - 0.5);
-  const half = Math.ceil(shuffled.length / 2);
-  const teamA = shuffled.slice(0, half).map(p => p.name);
-  const teamB = shuffled.slice(half).map(p => p.name);
-  await db.collection('rooms').doc(roomId).update({
-    'teams.A': teamA,
-    'teams.B': teamB,
-    teamsRandomized: true
-  });
-}
-
-// ═══════════════════════════════════════════════════
 //  PHASE TRANSITIONS
 // ═══════════════════════════════════════════════════
-async function startTeamAVoting() {
-  if (!lastState.teamsRandomized) { alert('Please randomise teams first.'); return; }
+async function startVoting() {
   const endTime = Date.now() + VOTE_SECS * 1000;
   await db.collection('rooms').doc(roomId).update({
-    phase: 'team_a_voting',
+    phase: 'voting',
     votingEndTime: endTime,
-    talliesA: {}, hasVotedA: {}
+    talliesA: {}, hasVotedA: {},
+    talliesB: {}, hasVotedB: {},
+    talliesC: {}, hasVotedC: {},
+    talliesD: {}, hasVotedD: {},
+    talliesE: {}, hasVotedE: {},
+    talliesF: {}, hasVotedF: {}
   });
 }
 
-async function finishTeamAVoting(manual = false) {
+async function finishVoting() {
   if (advancing) return;
-  if (lastState?.phase !== 'team_a_voting') return;
+  if (lastState?.phase !== 'voting') return;
   advancing = true;
   stopTimerDisplay();
   try {
-    await db.collection('rooms').doc(roomId).update({ phase: 'team_a_done', votingEndTime: null });
-  } finally { advancing = false; }
-}
-
-async function startTeamBVoting() {
-  const endTime = Date.now() + VOTE_SECS * 1000;
-  await db.collection('rooms').doc(roomId).update({
-    phase: 'team_b_voting',
-    votingEndTime: endTime,
-    talliesB: {}, hasVotedB: {}
-  });
-}
-
-async function finishTeamBVoting() {
-  if (advancing) return;
-  if (lastState?.phase !== 'team_b_voting') return;
-  advancing = true;
-  stopTimerDisplay();
-  try {
-    await db.collection('rooms').doc(roomId).update({ phase: 'team_b_done', votingEndTime: null });
+    await db.collection('rooms').doc(roomId).update({ phase: 'round_done', votingEndTime: null });
   } finally { advancing = false; }
 }
 
 async function confirmEliminations() {
   const state = lastState;
-  const round  = state.round;
-  const cfg    = ROUND_CFG[round];
-  const activeA = (state.teams.A || []).filter(n => !(state.eliminated || []).includes(n));
-  const activeB = (state.teams.B || []).filter(n => !(state.eliminated || []).includes(n));
-  const elimA  = calcElims(state.talliesA || {}, activeA, cfg.epTeam);
-  const elimB  = calcElims(state.talliesB || {}, activeB, cfg.epTeam);
-  const thisRound = [...elimA.toEliminate, ...elimB.toEliminate];
-  const newElim   = [...(state.eliminated || []), ...thisRound];
+  const round = state.round;
+  const cfg   = ROUND_CFG[round];
+  let allElim = [];
+  for (const t of TEAMS) {
+    const active = (state.teams[t] || []).filter(n => !(state.eliminated || []).includes(n));
+    const { toEliminate } = calcElims(state[`tallies${t}`] || {}, active, cfg.epTeam);
+    allElim = [...allElim, ...toEliminate];
+  }
+  const newElim = [...(state.eliminated || []), ...allElim];
+  const resetTallies = {};
+  for (const t of TEAMS) { resetTallies[`tallies${t}`] = {}; resetTallies[`hasVoted${t}`] = {}; }
 
   if (round < 3) {
-    // Advance to next regular round
     await db.collection('rooms').doc(roomId).update({
-      eliminated: newElim,
-      lastRoundEliminated: thisRound,
-      round: round + 1,
-      phase: 'lobby',
-      talliesA: {}, hasVotedA: {},
-      talliesB: {}, hasVotedB: {}
+      eliminated: newElim, lastRoundEliminated: allElim,
+      round: round + 1, phase: 'lobby', ...resetTallies
     });
   } else {
-    // After round 3 → move to final prep
     await db.collection('rooms').doc(roomId).update({
-      eliminated: newElim,
-      lastRoundEliminated: thisRound,
-      round: 'final',
-      phase: 'final_prep',
-      talliesA: {}, hasVotedA: {},
-      talliesB: {}, hasVotedB: {}
+      eliminated: newElim, lastRoundEliminated: allElim,
+      round: 'final', phase: 'final_prep', ...resetTallies
     });
   }
 }
@@ -747,7 +736,7 @@ async function confirmWinners() {
   const activePlayers = (state.players || [])
     .filter(p => !(state.eliminated || []).includes(p.name))
     .map(p => p.name);
-  const { toEliminate } = calcElims(state.talliesFinal || {}, activePlayers, 3);
+  const { toEliminate } = calcElims(state.talliesFinal || {}, activePlayers, 6);
   const newElim = [...(state.eliminated || []), ...toEliminate];
   await db.collection('rooms').doc(roomId).update({ eliminated: newElim, lastRoundEliminated: toEliminate, phase: 'winners' });
 }
@@ -756,13 +745,19 @@ async function confirmWinners() {
 async function confirmReset() {
   if (!confirm('Reset the entire game? This clears all votes and progress.')) return;
   if (!roomId) { location.reload(); return; }
+  const teams = { A: [], B: [], C: [], D: [], E: [], F: [] };
+  for (const p of PLAYERS) { if (p.team && teams[p.team]) teams[p.team].push(p.name); }
   await db.collection('rooms').doc(roomId).update({
     round: 1, phase: 'lobby', votingEndTime: null,
-    teams: { A: [], B: [] }, eliminated: [], lastRoundEliminated: [],
+    teams, eliminated: [], lastRoundEliminated: [],
     talliesA: {}, hasVotedA: {},
     talliesB: {}, hasVotedB: {},
+    talliesC: {}, hasVotedC: {},
+    talliesD: {}, hasVotedD: {},
+    talliesE: {}, hasVotedE: {},
+    talliesF: {}, hasVotedF: {},
     talliesFinal: {}, hasVotedFinal: {},
-    claimedBy: {}, teamsRandomized: false
+    claimedBy: {}
   });
 }
 
@@ -872,15 +867,13 @@ function renderHostView(state) {
 
   // Dispatch to phase renderer
   const phase = state.phase || 'lobby';
-  if      (phase === 'lobby')          renderLobby(state);
-  else if (phase === 'team_a_voting')  renderVotingPhase(state, 'A');
-  else if (phase === 'team_a_done')    renderTeamDone(state, 'A');
-  else if (phase === 'team_b_voting')  renderVotingPhase(state, 'B');
-  else if (phase === 'team_b_done')    renderTeamDone(state, 'B');
-  else if (phase === 'final_prep')     renderFinalPrep(state);
-  else if (phase === 'final_voting')   renderFinalVotingPhase(state);
-  else if (phase === 'final_done')     renderFinalDone(state);
-  else if (phase === 'winners')        renderWinners(state);
+  if      (phase === 'lobby')        renderLobby(state);
+  else if (phase === 'voting')       renderVotingAll(state);
+  else if (phase === 'round_done')   renderRoundDone(state);
+  else if (phase === 'final_prep')   renderFinalPrep(state);
+  else if (phase === 'final_voting') renderFinalVotingPhase(state);
+  else if (phase === 'final_done')   renderFinalDone(state);
+  else if (phase === 'winners')      renderWinners(state);
 }
 
 // ─── Phase: LOBBY ───
@@ -888,67 +881,54 @@ function renderLobby(state) {
   stopTimerDisplay();
   document.getElementById('voteProgressBar').style.display = 'none';
   document.getElementById('phaseLabel').textContent = 'Lobby';
-  document.getElementById('phaseDesc').textContent  = 'Randomise teams, then start voting when ready';
+  document.getElementById('phaseDesc').textContent  = 'Wait for players to join, then start voting';
 
   const round     = state.round || 1;
   const cfg       = ROUND_CFG[round] || ROUND_CFG[1];
-  const hasTeams  = (state.teams?.A?.length > 0);
-  const canStart  = hasTeams && state.teamsRandomized;
-  const statusMsg = !hasTeams ? 'No teams set yet — click Randomise Teams'
-                              : `Teams ready — ${Object.keys(state.claimedBy || {}).length} players have joined`;
+  const totalElim = cfg.epTeam * TEAMS.length;
+  const joined    = Object.keys(state.claimedBy || {}).length;
+  const total     = (state.players || []).length;
 
   document.getElementById('phaseActions').innerHTML = `
-    <button class="btn-sm" onclick="randomizeTeams()">🎲 Randomise Teams</button>
-    ${canStart ? `<button class="btn-green" onclick="startTeamAVoting()">▶ Start Round ${round} — Team A Votes</button>` : ''}
+    <button class="btn-green" onclick="startVoting()">▶ Start Round ${round} Voting</button>
   `;
 
   let html = `<div class="lobby-controls">
     <div class="lobby-info">
-      <h3>Round ${round} — ${cfg.epTeam} eliminated per team</h3>
-      <p>${statusMsg}</p>
+      <h3>Round ${round} — ${cfg.epTeam} per team · ${totalElim} total eliminated</h3>
+      <p>${joined} of ${total} players have joined</p>
     </div>
   </div>`;
 
-  if (hasTeams) {
-    html += buildTeamsHtml(state, null, false);
-  } else {
-    html += `<div style="text-align:center;padding:3rem;color:rgba(245,236,215,0.25);font-style:italic;">
-      Randomise teams to see Team A and Team B panels
-    </div>`;
-  }
+  html += buildAllTeamsHtml(state, null, false);
 
   document.getElementById('mainContent').innerHTML = html;
   document.getElementById('statusText').textContent = `Lobby — Round ${round}`;
 }
 
-// ─── Phase: VOTING (Team A or B) ───
-function renderVotingPhase(state, team) {
-  const isTeamA = team === 'A';
-  const tallies    = isTeamA ? (state.talliesA || {}) : (state.talliesB || {});
-  const hasVoted   = isTeamA ? (state.hasVotedA || {}) : (state.hasVotedB || {});
-  const teamPlayers = (state.teams?.[team] || []).filter(n => !(state.eliminated || []).includes(n));
-  const votedCount  = Object.values(hasVoted).filter(Boolean).length;
-  const totalEligible = teamPlayers.length;
+// ─── Phase: ALL TEAMS VOTING (simultaneous) ───
+function renderVotingAll(state) {
+  const totalEligible = TEAMS.reduce((sum, t) =>
+    sum + (state.teams[t] || []).filter(n => !(state.eliminated || []).includes(n)).length, 0);
+  const votedCount = TEAMS.reduce((sum, t) =>
+    sum + Object.values(state[`hasVoted${t}`] || {}).filter(Boolean).length, 0);
 
-  document.getElementById('phaseLabel').textContent = `Team ${team} Voting`;
-  document.getElementById('phaseDesc').textContent  = `${votedCount} of ${totalEligible} Team ${team} votes cast`;
+  document.getElementById('phaseLabel').textContent = 'All Teams Voting';
+  document.getElementById('phaseDesc').textContent  = `${votedCount} of ${totalEligible} votes cast`;
 
-  // Phase actions
   document.getElementById('phaseActions').innerHTML = `
     <div class="timer-wrap">
       <div class="timer-num" id="timerNum">40</div>
       <div class="timer-label">seconds</div>
     </div>
-    <button class="btn-blood" id="endVotingBtn" onclick="${isTeamA ? 'finishTeamAVoting(true)' : 'finishTeamBVoting(true)'}">End Voting Early</button>
+    <button class="btn-blood" id="endVotingBtn" onclick="finishVoting()">End Voting Early</button>
   `;
 
-  // Vote progress bar
   const pct = totalEligible > 0 ? Math.round(votedCount / totalEligible * 100) : 0;
   document.getElementById('voteProgressBar').style.display = 'flex';
-  document.getElementById('voteProgressFill').style.width = pct + '%';
+  document.getElementById('voteProgressFill').style.width  = pct + '%';
   document.getElementById('voteProgressCount').textContent = `${votedCount} / ${totalEligible}`;
 
-  // Timer — relabel button when time is up so host knows to proceed
   if (state.votingEndTime) {
     startTimerDisplay(state.votingEndTime, () => {
       const btn = document.getElementById('endVotingBtn');
@@ -956,62 +936,65 @@ function renderVotingPhase(state, team) {
     });
   }
 
-  document.getElementById('mainContent').innerHTML = buildTeamsHtml(state, team, true, tallies, hasVoted);
-  document.getElementById('statusText').textContent = `Team ${team} voting…`;
+  document.getElementById('mainContent').innerHTML = buildAllTeamsHtml(state, 'all', true);
+  document.getElementById('statusText').textContent = 'All teams voting simultaneously…';
 }
 
-// ─── Phase: DONE (Team A or B results) ───
-function renderTeamDone(state, team) {
+// ─── Phase: ROUND DONE (all 6 team results) ───
+function renderRoundDone(state) {
   stopTimerDisplay();
   document.getElementById('voteProgressBar').style.display = 'none';
-  const isTeamA  = team === 'A';
-  const cfg      = ROUND_CFG[state.round] || ROUND_CFG[1];
-  const tallies  = isTeamA ? (state.talliesA || {}) : (state.talliesB || {});
-  const teamPlayers = (state.teams?.[team] || []).filter(n => !(state.eliminated || []).includes(n));
-  const { toEliminate, tiebreakerUsed } = calcElims(tallies, teamPlayers, cfg.epTeam);
+  const cfg = ROUND_CFG[state.round] || ROUND_CFG[1];
 
-  document.getElementById('phaseLabel').textContent = `Team ${team} Results`;
-  document.getElementById('phaseDesc').textContent  = tiebreakerUsed
-    ? `Tie resolved — exactly ${toEliminate.length} eliminated from Team ${team}`
-    : `Top ${toEliminate.length} from Team ${team} will be eliminated`;
+  let allToEliminate = [];
+  let anyTiebreaker  = false;
+  for (const t of TEAMS) {
+    const active = (state.teams[t] || []).filter(n => !(state.eliminated || []).includes(n));
+    const { toEliminate, tiebreakerUsed } = calcElims(state[`tallies${t}`] || {}, active, cfg.epTeam);
+    allToEliminate = [...allToEliminate, ...toEliminate];
+    if (tiebreakerUsed) anyTiebreaker = true;
+  }
 
-  const nextAction = isTeamA
-    ? `<button class="btn-sm" onclick="startTeamBVoting()">▶ Start Team B Voting</button>`
-    : `<button class="btn-blood" onclick="confirmEliminations()">⚔ Confirm Eliminations</button>`;
+  document.getElementById('phaseLabel').textContent = 'Round Results';
+  document.getElementById('phaseDesc').textContent  = anyTiebreaker
+    ? `Tiebreaker applied — ${allToEliminate.length} players will be eliminated`
+    : `${allToEliminate.length} players will be eliminated (${cfg.epTeam} per team)`;
 
-  document.getElementById('phaseActions').innerHTML = nextAction;
+  document.getElementById('phaseActions').innerHTML = `
+    <button class="btn-blood" onclick="confirmEliminations()">⚔ Confirm Eliminations</button>
+  `;
 
   let html = '';
-  if (tiebreakerUsed) {
-    html += `<div class="tie-warning" style="background:rgba(201,168,76,0.07);border-color:rgba(201,168,76,0.3);color:var(--gold-light);">🎲 Vote tie at the boundary — tiebreaker applied. Exactly ${cfg.epTeam} eliminated.</div>`;
+  if (anyTiebreaker) {
+    html += `<div class="tie-warning" style="background:rgba(201,168,76,0.07);border-color:rgba(201,168,76,0.3);color:var(--gold-light);">🎲 Vote tie in one or more teams — tiebreaker applied. Eliminations are final.</div>`;
   }
 
-  html += buildTallySection(`Team ${team} — Vote Results`, tallies, teamPlayers, toEliminate);
-
-  // If team A done, also show team B panel (waiting)
-  if (isTeamA) {
-    html += `<div style="margin-top:1.5rem;">`;
-    html += buildTeamPanel(state, 'B', null, {}, {}, false, false);
-    html += `</div>`;
+  html += `<div class="teams-grid-6">`;
+  for (const t of TEAMS) {
+    const active  = (state.teams[t] || []).filter(n => !(state.eliminated || []).includes(n));
+    const tallies = state[`tallies${t}`] || {};
+    const { toEliminate } = calcElims(tallies, active, cfg.epTeam);
+    html += `<div>${buildTallySection(`Team ${t}`, tallies, active, toEliminate)}</div>`;
   }
+  html += `</div>`;
 
   document.getElementById('mainContent').innerHTML = html;
-  document.getElementById('statusText').textContent = `Team ${team} results shown`;
+  document.getElementById('statusText').textContent = 'Round results — awaiting confirmation';
 }
 
 // ─── Phase: FINAL PREP ───
 function renderFinalPrep(state) {
   stopTimerDisplay();
   document.getElementById('voteProgressBar').style.display = 'none';
+  const activePlayers = (state.players || []).filter(p => !(state.eliminated || []).includes(p.name));
   document.getElementById('phaseLabel').textContent = 'Final Round';
-  document.getElementById('phaseDesc').textContent  = '6 players remain — all 50 players now vote for who they think is the traitor';
+  document.getElementById('phaseDesc').textContent  = `${activePlayers.length} players remain — all ${(state.players || []).length} players now vote for who they think is the traitor`;
   document.getElementById('phaseActions').innerHTML = `
     <button class="btn-gold" onclick="startFinalVoting()" style="background:rgba(201,168,76,0.15);border:1px solid var(--gold);border-radius:8px;padding:7px 18px;font-family:Cinzel,serif;font-size:11px;letter-spacing:1.5px;color:var(--gold);cursor:pointer;">⚔ Start Final Voting</button>
   `;
 
-  const activePlayers = (state.players || []).filter(p => !(state.eliminated || []).includes(p.name));
   let html = `<div style="margin-bottom:1rem;">
-    <div class="section-label">The 6 Remaining Players</div>
+    <div class="section-label">${activePlayers.length} Remaining Players</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:0.75rem;">`;
   for (const p of activePlayers) {
     html += `<div class="player-tile">
@@ -1078,12 +1061,12 @@ function renderFinalDone(state) {
   document.getElementById('voteProgressBar').style.display = 'none';
   const activePlayers  = (state.players || []).filter(p => !(state.eliminated || []).includes(p.name)).map(p => p.name);
   const tallies        = state.talliesFinal || {};
-  const { toEliminate, tiebreakerUsed } = calcElims(tallies, activePlayers, 3);
+  const { toEliminate, tiebreakerUsed } = calcElims(tallies, activePlayers, 6);
 
   document.getElementById('phaseLabel').textContent = 'Final Results';
   document.getElementById('phaseDesc').textContent  = tiebreakerUsed
-    ? 'Tie resolved by tiebreaker — three players eliminated'
-    : 'Three players eliminated — three survivors revealed';
+    ? 'Tie resolved by tiebreaker — six players eliminated'
+    : 'Six players eliminated — three survivors revealed';
 
   document.getElementById('phaseActions').innerHTML = `
     <button class="btn-green" onclick="confirmWinners()" style="background:rgba(39,174,96,0.15);border:1px solid rgba(39,174,96,0.4);border-radius:8px;padding:7px 18px;font-family:Cinzel,serif;font-size:11px;letter-spacing:1.5px;color:#2ecc71;cursor:pointer;">👑 Reveal Winners</button>
@@ -1129,25 +1112,27 @@ function renderWinners(state) {
 // ═══════════════════════════════════════════════════
 //  HTML BUILDERS
 // ═══════════════════════════════════════════════════
-function buildTeamsHtml(state, votingTeam, showVotes, tallies, hasVoted) {
-  tallies  = tallies  || {};
-  hasVoted = hasVoted || {};
-  return `<div class="teams-row">
-    ${buildTeamPanel(state, 'A', votingTeam, tallies, hasVoted, showVotes)}
-    ${buildTeamPanel(state, 'B', votingTeam, tallies, hasVoted, showVotes)}
+function buildAllTeamsHtml(state, votingTeam, showVotes) {
+  return `<div class="teams-grid-6">
+    ${TEAMS.map(t => buildTeamPanel(
+      state, t, votingTeam,
+      state[`tallies${t}`] || {},
+      state[`hasVoted${t}`] || {},
+      showVotes
+    )).join('')}
   </div>`;
 }
 
 function buildTeamPanel(state, team, votingTeam, tallies, hasVoted, showVotes) {
-  const teamTallies  = team === 'A' ? (tallies || {}) : (tallies || {});
   const teamHasVoted = hasVoted || {};
   const players      = state.teams?.[team] || [];
   const eliminated   = state.eliminated || [];
   const claimed      = state.claimedBy  || {};
   const active       = players.filter(n => !eliminated.includes(n));
-  const isVoting     = votingTeam === team;
-  const isWaiting    = votingTeam && votingTeam !== team;
-  const maxVotes     = Math.max(1, ...Object.values(teamTallies).map(Number));
+  // 'all' means every team is voting simultaneously
+  const isVoting     = votingTeam === team || votingTeam === 'all';
+  const isWaiting    = votingTeam !== null && votingTeam !== 'all' && votingTeam !== team;
+  const maxVotes     = Math.max(1, ...Object.values(tallies || {}).map(Number));
 
   const badge = isVoting  ? `<div class="team-voting-badge active">Voting</div>`
               : isWaiting ? `<div class="team-voting-badge waiting">Waiting</div>`
@@ -1164,12 +1149,12 @@ function buildTeamPanel(state, team, votingTeam, tallies, hasVoted, showVotes) {
     <div class="team-players">`;
 
   for (const name of players) {
-    const isElim   = eliminated.includes(name);
-    const voted    = !!teamHasVoted[name];
+    const isElim    = eliminated.includes(name);
+    const voted     = !!teamHasVoted[name];
     const isClaimed = !!claimed[name];
-    const votes    = teamTallies[name] || 0;
-    const pct      = showVotes && votes > 0 ? Math.round(votes / maxVotes * 100) : 0;
-    const p        = (state.players || []).find(pl => pl.name === name) || { name };
+    const votes     = (tallies || {})[name] || 0;
+    const pct       = showVotes && votes > 0 ? Math.round(votes / maxVotes * 100) : 0;
+    const p         = (state.players || []).find(pl => pl.name === name) || { name };
 
     html += `<div class="player-tile ${isElim ? 'eliminated' : ''} ${voted && !isElim ? 'has-voted' : ''} ${isClaimed && !isElim ? 'claimed' : ''}">
       <div class="tile-photo-wrap">
