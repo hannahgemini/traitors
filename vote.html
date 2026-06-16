@@ -669,7 +669,7 @@ function routePlayerView(state) {
       phase === 'final_prep'
         ? 'The final round is about to begin…\nAll players will vote — including eliminated players.'
         : 'Waiting for the host to start the next round…',
-      phase === 'lobby' && !iAmElim // back button only for non-eliminated players in lobby
+      phase === 'lobby' && !iAmElim && state.round === 1 // only before Round 1 starts; hidden once game is underway
     ); return;
   }
 
